@@ -25,47 +25,24 @@
 #include "spx_profiler_tracer.h"
 #include "spx_resource_stats.h"
 #include "spx_utils.h"
+#include "spx_limits.h"
+#include "spx_metric_values.h"
 
+/* Compatibility macros for old code - will be removed in next refactoring */
+#define STACK_CAPACITY spx_get_max_stack_depth()
+#define FUNC_TABLE_CAPACITY spx_get_max_function_table_size()
 
-#define STACK_CAPACITY 2048
-#define FUNC_TABLE_CAPACITY 65536
-
-#define METRIC_VALUES_ZERO(m)                \
-do {                                         \
-    SPX_METRIC_FOREACH(i_, {                 \
-        (m).values[i_] = 0;                  \
-    });                                      \
-} while (0)
-
-#define METRIC_VALUES_ADD(a, b)              \
-do {                                         \
-    SPX_METRIC_FOREACH(i_, {                 \
-        (a).values[i_] += (b).values[i_];    \
-    });                                      \
-} while (0)
-
-#define METRIC_VALUES_SUB(a, b)               \
-do {                                          \
-    SPX_METRIC_FOREACH(i_, {                  \
-        (a).values[i_] -= (b).values[i_];     \
-    });                                       \
-} while (0)
-
-#define METRIC_VALUES_MAX(a, b)               \
-do {                                          \
-    SPX_METRIC_FOREACH(i_, {                  \
-        (a).values[i_] =                      \
-            (a).values[i_] > (b).values[i_] ? \
-                (a).values[i_] :              \
-                (b).values[i_]                \
-        ;                                     \
-    });                                       \
-} while (0)
+/* Legacy macro compatibility - use spx_metric_values_* functions instead */
+#define METRIC_VALUES_ZERO(m) spx_metric_values_zero(&(m))
+#define METRIC_VALUES_ADD(a, b) spx_metric_values_add(&(a), &(b))
+#define METRIC_VALUES_SUB(a, b) spx_metric_values_sub(&(a), &(b))
+#define METRIC_VALUES_MAX(a, b) spx_metric_values_max(&(a), &(b))
 
 typedef struct {
     spx_hmap_t * hmap;
     size_t size;
-    spx_profiler_func_table_entry_t entries[FUNC_TABLE_CAPACITY];
+    size_t capacity;
+    spx_profiler_func_table_entry_t * entries;
 } func_table_t;
 
 typedef struct {
@@ -99,7 +76,8 @@ typedef struct {
 
     struct {
         size_t depth;
-        stack_frame_t frames[STACK_CAPACITY];
+        size_t capacity;
+        stack_frame_t * frames;
     } stack;
 
     func_table_t func_table;
@@ -169,11 +147,25 @@ spx_profiler_t * spx_profiler_tracer_create(
     METRIC_VALUES_ZERO(profiler->call_start_noise);
     METRIC_VALUES_ZERO(profiler->call_end_noise);
 
-    profiler->max_depth = max_depth > 0 && max_depth < STACK_CAPACITY ? max_depth : STACK_CAPACITY;
+    const size_t stack_capacity = spx_get_max_stack_depth();
+    profiler->max_depth = (max_depth > 0 && max_depth < stack_capacity) ? max_depth : stack_capacity;
     profiler->called = 0;
 
+    /* Allocate stack frames dynamically */
+    profiler->stack.capacity = stack_capacity;
     profiler->stack.depth = 0;
+    profiler->stack.frames = calloc(stack_capacity, sizeof(stack_frame_t));
+    if (!profiler->stack.frames) {
+        goto error;
+    }
+
+    /* Allocate function table entries dynamically */
+    profiler->func_table.capacity = spx_get_max_function_table_size();
     profiler->func_table.size = 0;
+    profiler->func_table.entries = calloc(profiler->func_table.capacity, sizeof(spx_profiler_func_table_entry_t));
+    if (!profiler->func_table.entries) {
+        goto error;
+    }
     profiler->func_table.hmap = NULL;
 
     profiler->metric_collector = spx_metric_collector_create(profiler->enabled_metrics);
@@ -182,7 +174,7 @@ spx_profiler_t * spx_profiler_tracer_create(
     }
 
     profiler->func_table.hmap = spx_hmap_create(
-        FUNC_TABLE_CAPACITY,
+        profiler->func_table.capacity,
         func_table_hmap_hash_key,
         func_table_hmap_cmp_key
     );
@@ -407,6 +399,14 @@ static void tracing_profiler_destroy(spx_profiler_t * base_profiler)
         spx_hmap_destroy(profiler->func_table.hmap);
     }
 
+    if (profiler->func_table.entries) {
+        free(profiler->func_table.entries);
+    }
+
+    if (profiler->stack.frames) {
+        free(profiler->stack.frames);
+    }
+
     free(profiler);
 }
 
@@ -494,7 +494,7 @@ static spx_profiler_func_table_entry_t * func_table_get_entry(
     func_table_t * func_table,
     const spx_php_function_t * function
 ) {
-    if (func_table->size == FUNC_TABLE_CAPACITY) {
+    if (func_table->size == func_table->capacity) {
         return spx_hmap_get_value(func_table->hmap, function);
     }
 
@@ -514,8 +514,8 @@ static spx_profiler_func_table_entry_t * func_table_get_entry(
     }
 
     func_table->size++;
-    if (func_table->size == FUNC_TABLE_CAPACITY) {
-        fprintf(stderr, "SPX: FUNC_TABLE_CAPACITY (%d) reached\n", FUNC_TABLE_CAPACITY);
+    if (func_table->size == func_table->capacity) {
+        fprintf(stderr, "SPX: Function table capacity (%zu) reached\n", func_table->capacity);
     }
 
     const size_t idx = func_table->size - 1;
