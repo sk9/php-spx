@@ -20,16 +20,11 @@
 #include <stdlib.h>
 
 #include "spx_metric.h"
+#include "spx_metric_registry.h"
+#include "spx_metric_builtin.h"
 #include "spx_resource_stats.h"
 #include "spx_thread.h"
 #include "spx_php.h"
-
-#ifdef __GNUC__
-#   define ARRAY_INIT_INDEX(idx) [idx] = 
-#else
-#   error "Please open an issue"
-#endif
-
 
 struct spx_metric_collector_t {
     int enabled_metrics[SPX_METRIC_COUNT];
@@ -44,204 +39,74 @@ struct spx_metric_collector_t {
 };
 
 
-static size_t metric_handler_idle_time(void);
-static size_t metric_handler_io_bytes(void);
-static size_t metric_handler_io_r_bytes(void);
-static size_t metric_handler_io_w_bytes(void);
-
-static void memoize_io_stats(void);
-static size_t memoized_metric_value(spx_metric_t metric);
-
 static void collect_raw_values(const int * enabled_metrics, double * current_values);
 
-const spx_metric_info_t spx_metric_info[SPX_METRIC_COUNT] = {
-    ARRAY_INIT_INDEX(SPX_METRIC_WALL_TIME) {
-        "wt",
-        "Wall time",
-        "Wall time",
-        SPX_FMT_TIME,
-        0,
-        spx_resource_stats_wall_time,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_CPU_TIME) {
-        "ct",
-        "CPU time",
-        "CPU time",
-        SPX_FMT_TIME,
-        0,
-        spx_resource_stats_cpu_time,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_IDLE_TIME) {
-        "it",
-        "Idle time",
-        "Idle time",
-        SPX_FMT_TIME,
-        0,
-        metric_handler_idle_time,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_ZE_MEMORY_USAGE) {
-        "zm",
-        "ZE memory usage",
-        "Zend Engine memory usage",
-        SPX_FMT_MEMORY,
-        1,
-        spx_php_zend_memory_usage,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_ZE_MEMORY_ALLOC_COUNT) {
-        "zmac",
-        "ZE alloc count",
-        "Zend Engine allocation count",
-        SPX_FMT_QUANTITY,
-        0,
-        spx_php_zend_memory_alloc_count,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_ZE_MEMORY_ALLOC_BYTES) {
-        "zmab",
-        "ZE alloc bytes",
-        "Zend Engine allocated bytes",
-        SPX_FMT_MEMORY,
-        0,
-        spx_php_zend_memory_alloc_bytes,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_ZE_MEMORY_FREE_COUNT) {
-        "zmfc",
-        "ZE free count",
-        "Zend Engine free count",
-        SPX_FMT_QUANTITY,
-        0,
-        spx_php_zend_memory_free_count,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_ZE_MEMORY_FREE_BYTES) {
-        "zmfb",
-        "ZE free bytes",
-        "Zend Engine freed bytes",
-        SPX_FMT_MEMORY,
-        0,
-        spx_php_zend_memory_free_bytes,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_ZE_GC_RUNS) {
-        "zgr",
-        "ZE GC runs",
-        "Zend Engine GC run count",
-        SPX_FMT_QUANTITY,
-        0,
-        spx_php_zend_gc_run_count,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_ZE_GC_ROOT_BUFFER) {
-        "zgb",
-        "ZE GC root buffer",
-        "Zend Engine GC root buffer length",
-        SPX_FMT_QUANTITY,
-        1,
-        spx_php_zend_gc_root_buffer_length,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_ZE_GC_COLLECTED) {
-        "zgc",
-        "ZE GC collected",
-        "Zend Engine GC collected cycle count",
-        SPX_FMT_QUANTITY,
-        0,
-        spx_php_zend_gc_collected_count,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_ZE_INCLUDED_FILE_COUNT) {
-        "zif",
-        "ZE file count",
-        "Zend Engine included file count",
-        SPX_FMT_QUANTITY,
-        0,
-        spx_php_zend_included_file_count,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_ZE_INCLUDED_LINE_COUNT) {
-        "zil",
-        "ZE line count",
-        "Zend Engine included line count",
-        SPX_FMT_QUANTITY,
-        0,
-        spx_php_zend_included_line_count,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_ZE_USER_CLASS_COUNT) {
-        "zuc",
-        "ZE class count",
-        "Zend Engine user class count",
-        SPX_FMT_QUANTITY,
-        0,
-        spx_php_zend_class_count,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_ZE_USER_FUNCTION_COUNT) {
-        "zuf",
-        "ZE func. count",
-        "Zend Engine user function count",
-        SPX_FMT_QUANTITY,
-        0,
-        spx_php_zend_function_count,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_ZE_USER_OPCODE_COUNT) {
-        "zuo",
-        "ZE opcodes count",
-        "Zend Engine user opcode count",
-        SPX_FMT_QUANTITY,
-        0,
-        spx_php_zend_opcode_count,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_ZE_OBJECT_COUNT) {
-        "zo",
-        "ZE object count",
-        "Zend Engine object count",
-        SPX_FMT_QUANTITY,
-        1,
-        spx_php_zend_object_count,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_ZE_ERROR_COUNT) {
-        "ze",
-        "ZE error count",
-        "Zend Engine error count",
-        SPX_FMT_QUANTITY,
-        0,
-        spx_php_zend_error_count,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_MEM_OWN_RSS) {
-        "mor",
-        "Own RSS",
-        "Process's own RSS",
-        SPX_FMT_MEMORY,
-        1,
-        spx_resource_stats_own_rss,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_IO_BYTES) {
-        "io",
-        "I/O Bytes",
-        "I/O Bytes (reads + writes)",
-        SPX_FMT_MEMORY,
-        0,
-        metric_handler_io_bytes,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_IO_RBYTES) {
-        "ior",
-        "I/O Read Bytes",
-        "I/O Read Bytes",
-        SPX_FMT_MEMORY,
-        0,
-        metric_handler_io_r_bytes,
-    },
-    ARRAY_INIT_INDEX(SPX_METRIC_IO_WBYTES) {
-        "iow",
-        "I/O Written Bytes",
-        "I/O Written Bytes",
-        SPX_FMT_MEMORY,
-        0,
-        metric_handler_io_w_bytes,
-    },
-};
+/*
+ * Compatibility layer: Populate spx_metric_info[] from registry
+ * This ensures existing code continues to work without modification.
+ */
+static spx_metric_info_t metric_info_compat[SPX_METRIC_COUNT];
+const spx_metric_info_t spx_metric_info[SPX_METRIC_COUNT] = {0};  /* Will be copied from compat */
 
-static SPX_THREAD_TLS struct {
-    int memoized;
-    size_t value;
-} memoized_metric_values[SPX_METRIC_COUNT];
+static int metrics_initialized = 0;
+
+void spx_metric_init(void)
+{
+    if (metrics_initialized) {
+        return;
+    }
+
+    /* Initialize registry */
+    spx_metric_registry_init();
+
+    /* Register all built-in metrics */
+    spx_metric_builtin_register_all();
+
+    /* Populate compatibility array from registry */
+    SPX_METRIC_FOREACH(i, {
+        const spx_metric_info_ex_t *info = spx_metric_builtin_get_info(i);
+        if (info) {
+            metric_info_compat[i].key = info->key;
+            metric_info_compat[i].short_name = info->short_name;
+            metric_info_compat[i].name = info->name;
+            metric_info_compat[i].type = info->type;
+            metric_info_compat[i].releasable = info->releasable;
+            metric_info_compat[i].handler = info->handler;
+        }
+    });
+
+    /* Copy to const array (hack for compatibility) */
+    memcpy((void*)spx_metric_info, metric_info_compat, sizeof(spx_metric_info));
+
+    metrics_initialized = 1;
+}
+
+void spx_metric_shutdown(void)
+{
+    if (!metrics_initialized) {
+        return;
+    }
+
+    spx_metric_registry_shutdown();
+    metrics_initialized = 0;
+}
 
 spx_metric_t spx_metric_get_by_key(const char * key)
 {
+    if (!metrics_initialized) {
+        return SPX_METRIC_NONE;
+    }
+
+    /* Use registry for lookup */
+    spx_metric_id_t id = spx_metric_registry_get_by_key(key);
+    if (id == SPX_METRIC_ID_NONE) {
+        return SPX_METRIC_NONE;
+    }
+
+    /* Find corresponding enum value */
     SPX_METRIC_FOREACH(i, {
-        if (0 == strcmp(spx_metric_info[i].key, key)) {
+        spx_metric_id_t enum_id = spx_metric_builtin_get_registry_id(i);
+        if (enum_id == id) {
             return i;
         }
     });
@@ -344,48 +209,11 @@ void spx_metric_collector_add_fixed_noise(spx_metric_collector_t * collector, co
     }
 }
 
-static size_t metric_handler_idle_time(void)
-{
-    return memoized_metric_value(SPX_METRIC_WALL_TIME) - memoized_metric_value(SPX_METRIC_CPU_TIME);
-}
-
-static size_t metric_handler_io_bytes(void)
-{
-    return memoized_metric_value(SPX_METRIC_IO_RBYTES) + memoized_metric_value(SPX_METRIC_IO_WBYTES);
-}
-
-static size_t metric_handler_io_w_bytes(void)
-{
-    memoize_io_stats();
-
-    return memoized_metric_value(SPX_METRIC_IO_WBYTES);
-}
-
-static size_t metric_handler_io_r_bytes(void)
-{
-    memoize_io_stats();
-
-    return memoized_metric_value(SPX_METRIC_IO_RBYTES);
-}
-
-static void memoize_io_stats(void)
-{
-    if (
-        memoized_metric_values[SPX_METRIC_IO_RBYTES].memoized
-        && memoized_metric_values[SPX_METRIC_IO_WBYTES].memoized
-    ) {
-        return;
-    }
-
-    size_t in, out;
-    spx_resource_stats_io(&in, &out);
-
-    memoized_metric_values[SPX_METRIC_IO_RBYTES].value = in;
-    memoized_metric_values[SPX_METRIC_IO_RBYTES].memoized = 1;
-
-    memoized_metric_values[SPX_METRIC_IO_WBYTES].value = out;
-    memoized_metric_values[SPX_METRIC_IO_WBYTES].memoized = 1;
-}
+/* Thread-local storage for memoized metric values */
+static SPX_THREAD_TLS struct {
+    int memoized;
+    size_t value;
+} memoized_metric_values[SPX_METRIC_COUNT];
 
 static size_t memoized_metric_value(spx_metric_t metric)
 {
