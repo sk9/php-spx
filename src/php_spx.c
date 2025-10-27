@@ -40,13 +40,14 @@
 #include "spx_reporter_fp.h"
 #include "spx_reporter_full.h"
 #include "spx_reporter_trace.h"
+#include "spx_signal_handler.h"
+#include "spx_call_stack.h"
+#include "spx_limits.h"
 
 typedef struct {
     void (*init) (void);
     void (*shutdown) (void);
 } execution_handler_t;
-
-#define STACK_CAPACITY 2048
 
 static SPX_THREAD_TLS struct {
     int cli_sapi;
@@ -55,26 +56,17 @@ static SPX_THREAD_TLS struct {
     execution_handler_t * execution_handler;
 
     struct {
+        /* Signal handling (CLI only) */
 #ifdef USE_SIGNAL
-        struct {
-            int handler_set;
-            struct {
-                struct sigaction sigint;
-                struct sigaction sigterm;
-            } prev_handler;
-
-            volatile sig_atomic_t handler_called;
-            volatile sig_atomic_t probing;
-            volatile sig_atomic_t stop;
-            int signo;
-        } sig_handling;
+        spx_signal_handler_t * sig_handler;
 #endif
+
+        /* Call stack tracking */
+        spx_call_stack_t * call_stack;
 
         char full_report_key[512];
         spx_profiler_reporter_t * reporter;
         spx_profiler_t * profiler;
-        spx_php_function_t stack[STACK_CAPACITY];
-        size_t depth;
         size_t span_depth;
     } profiling_handler;
 } context;
@@ -394,12 +386,17 @@ static PHP_FUNCTION(spx_profiler_start)
         return;
     }
 
+    /* Replay the current call stack to the profiler */
+    size_t depth = spx_call_stack_depth(context.profiling_handler.call_stack);
     size_t i;
-    for (i = 0; i < context.profiling_handler.depth; i++) {
-        context.profiling_handler.profiler->call_start(
-            context.profiling_handler.profiler,
-            &context.profiling_handler.stack[i]
-        );
+    for (i = 0; i < depth; i++) {
+        spx_php_function_t function;
+        if (spx_call_stack_get_frame_at(context.profiling_handler.call_stack, i, &function) == 0) {
+            context.profiling_handler.profiler->call_start(
+                context.profiling_handler.profiler,
+                &function
+            );
+        }
     }
 }
 
@@ -607,19 +604,21 @@ static int check_access(void)
 static void profiling_handler_init(void)
 {
 #ifdef USE_SIGNAL
-    context.profiling_handler.sig_handling.handler_set = 0;
-    context.profiling_handler.sig_handling.probing = 0;
-    context.profiling_handler.sig_handling.stop = 0;
-    context.profiling_handler.sig_handling.handler_called = 0;
-    context.profiling_handler.sig_handling.signo = -1;
+    context.profiling_handler.sig_handler = NULL;
 #endif
+
+    /* Initialize call stack with configurable capacity */
+    context.profiling_handler.call_stack = spx_call_stack_create(spx_limits_get_max_stack_depth());
+    if (!context.profiling_handler.call_stack) {
+        spx_php_log_notice("profiling_handler_init(): failed to create call stack");
+        return;
+    }
 
     profiling_handler_ex_set_context();
 
     context.profiling_handler.full_report_key[0] = 0;
     context.profiling_handler.reporter = NULL;
     context.profiling_handler.profiler = NULL;
-    context.profiling_handler.depth = 0;
     context.profiling_handler.span_depth = 0;
 
     if (context.config.auto_start) {
@@ -631,6 +630,12 @@ static void profiling_handler_shutdown(void)
 {
     profiling_handler_stop();
     profiling_handler_ex_unset_context();
+
+    /* Cleanup call stack */
+    if (context.profiling_handler.call_stack) {
+        spx_call_stack_destroy(context.profiling_handler.call_stack);
+        context.profiling_handler.call_stack = NULL;
+    }
 }
 
 
@@ -755,7 +760,19 @@ static void profiling_handler_ex_set_context(void)
 
 #ifdef USE_SIGNAL
     if (context.cli_sapi && context.config.auto_start) {
-        profiling_handler_sig_set_handler();
+        /* Create and install signal handler */
+        context.profiling_handler.sig_handler = spx_signal_handler_create();
+        if (context.profiling_handler.sig_handler) {
+            spx_signal_handler_set_terminate_callback(
+                context.profiling_handler.sig_handler,
+                profiling_handler_sig_terminate
+            );
+            if (spx_signal_handler_install(context.profiling_handler.sig_handler) != 0) {
+                spx_php_log_notice("profiling_handler_ex_set_context(): failed to install signal handler");
+                spx_signal_handler_destroy(context.profiling_handler.sig_handler);
+                context.profiling_handler.sig_handler = NULL;
+            }
+        }
     }
 #endif
 }
@@ -763,8 +780,11 @@ static void profiling_handler_ex_set_context(void)
 static void profiling_handler_ex_unset_context(void)
 {
 #ifdef USE_SIGNAL
-    if (context.cli_sapi && context.config.auto_start) {
-        profiling_handler_sig_unset_handler();
+    if (context.cli_sapi && context.config.auto_start && context.profiling_handler.sig_handler) {
+        /* Uninstall and destroy signal handler */
+        spx_signal_handler_uninstall(context.profiling_handler.sig_handler);
+        spx_signal_handler_destroy(context.profiling_handler.sig_handler);
+        context.profiling_handler.sig_handler = NULL;
     }
 #endif
 
@@ -780,61 +800,70 @@ static void profiling_handler_ex_hook_before(void)
 {
     /*
         It might appear a bit unfair to resolve & copy the current function
-        name in the context.profiling_handler.stack array even for
-        non-profiled functions.
+        name in the call stack even for non-profiled functions.
         But I've no other choice since I currently don't know how to safely
-        & accuratly resolve the current stack (accordingly to SPX_BUILTINS)
+        & accurately resolve the current stack (accordingly to SPX_BUILTINS)
         via the Zend Engine.
-        The induced overhead will, however, not be noticable in most cases.
+        The induced overhead will, however, not be noticeable in most cases.
     */
 
-    if (context.profiling_handler.depth == STACK_CAPACITY) {
-        spx_utils_die("STACK_CAPACITY exceeded");
+    if (spx_call_stack_is_full(context.profiling_handler.call_stack)) {
+        spx_utils_die("Call stack capacity exceeded");
     }
 
     spx_php_function_t function;
     spx_php_current_function(&function);
 
-    context.profiling_handler.stack[context.profiling_handler.depth] = function;
-
-    context.profiling_handler.depth++;
+    if (spx_call_stack_push(context.profiling_handler.call_stack, &function) != 0) {
+        spx_utils_die("Failed to push to call stack");
+    }
 
     if (!context.profiling_handler.profiler) {
         return;
     }
 
 #ifdef USE_SIGNAL
-    context.profiling_handler.sig_handling.probing = 1;
+    if (context.profiling_handler.sig_handler) {
+        spx_signal_handler_set_probing(context.profiling_handler.sig_handler, 1);
+    }
 #endif
 
     context.profiling_handler.profiler->call_start(context.profiling_handler.profiler, &function);
 
 #ifdef USE_SIGNAL
-    context.profiling_handler.sig_handling.probing = 0;
-    if (context.profiling_handler.sig_handling.stop) {
-        profiling_handler_sig_terminate();
+    if (context.profiling_handler.sig_handler) {
+        spx_signal_handler_set_probing(context.profiling_handler.sig_handler, 0);
+        if (spx_signal_handler_should_stop(context.profiling_handler.sig_handler)) {
+            profiling_handler_sig_terminate();
+        }
     }
 #endif
 }
 
 static void profiling_handler_ex_hook_after(void)
 {
-    context.profiling_handler.depth--;
+    if (spx_call_stack_pop(context.profiling_handler.call_stack, NULL) != 0) {
+        spx_utils_die("Failed to pop from call stack");
+    }
 
     if (!context.profiling_handler.profiler) {
         return;
     }
 
 #ifdef USE_SIGNAL
-    context.profiling_handler.sig_handling.probing = 1;
+    if (context.profiling_handler.sig_handler) {
+        spx_signal_handler_set_probing(context.profiling_handler.sig_handler, 1);
+    }
 #endif
 
     context.profiling_handler.profiler->call_end(context.profiling_handler.profiler);
 
 #ifdef USE_SIGNAL
-    context.profiling_handler.sig_handling.probing = 0;
-    if (context.profiling_handler.sig_handling.stop) {
-        profiling_handler_sig_terminate();
+    if (context.profiling_handler.sig_handler) {
+        spx_signal_handler_set_probing(context.profiling_handler.sig_handler, 0);
+        if (spx_signal_handler_should_stop(context.profiling_handler.sig_handler)) {
+            profiling_handler_sig_terminate();
+        }
     }
 #endif
 }
@@ -844,53 +873,13 @@ static void profiling_handler_sig_terminate(void)
 {
     profiling_handler_shutdown();
 
-    _exit(
-        context.profiling_handler.sig_handling.signo < 0 ?
-            EXIT_SUCCESS : 128 + context.profiling_handler.sig_handling.signo
-    );
-}
-
-static void profiling_handler_sig_handler(int signo)
-{
-    context.profiling_handler.sig_handling.handler_called++;
-    if (context.profiling_handler.sig_handling.handler_called > 1) {
-        return;
+    /* Get signal number from signal handler if available */
+    int signo = -1;
+    if (context.profiling_handler.sig_handler) {
+        signo = spx_signal_handler_get_signo(context.profiling_handler.sig_handler);
     }
 
-    context.profiling_handler.sig_handling.signo = signo;
-
-    if (context.profiling_handler.sig_handling.probing) {
-        context.profiling_handler.sig_handling.stop = 1;
-
-        return;
-    }
-
-    profiling_handler_sig_terminate();
-}
-
-static void profiling_handler_sig_set_handler(void)
-{
-    struct sigaction act;
-
-    act.sa_handler = profiling_handler_sig_handler;
-    act.sa_flags = 0;
-
-    sigaction(SIGINT, &act, &context.profiling_handler.sig_handling.prev_handler.sigint);
-    sigaction(SIGTERM, &act, &context.profiling_handler.sig_handling.prev_handler.sigterm);
-
-    context.profiling_handler.sig_handling.handler_set = 1;
-}
-
-static void profiling_handler_sig_unset_handler(void)
-{
-    if (!context.profiling_handler.sig_handling.handler_set) {
-        return;
-    }
-
-    sigaction(SIGINT, &context.profiling_handler.sig_handling.prev_handler.sigint, NULL);
-    sigaction(SIGTERM, &context.profiling_handler.sig_handling.prev_handler.sigterm, NULL);
-
-    context.profiling_handler.sig_handling.handler_set = 0;
+    _exit(signo < 0 ? EXIT_SUCCESS : 128 + signo);
 }
 #endif /* defined(USE_SIGNAL) */
 

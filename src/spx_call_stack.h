@@ -131,4 +131,14 @@ int spx_call_stack_is_full(const spx_call_stack_t *stack);
  */
 void spx_call_stack_clear(spx_call_stack_t *stack);
 
+/**
+ * Get a frame at a specific index (0 = bottom of stack).
+ *
+ * @param stack Call stack
+ * @param index Index of frame to retrieve (0-based)
+ * @param function Output: frame at the given index (if not NULL)
+ * @return 0 on success, -1 if index out of bounds
+ */
+int spx_call_stack_get_frame_at(const spx_call_stack_t *stack, size_t index, spx_php_function_t *function);
+
 #endif /* SPX_CALL_STACK_H */

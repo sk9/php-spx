@@ -147,3 +147,22 @@ void spx_call_stack_clear(spx_call_stack_t *stack)
         stack->depth = 0;
     }
 }
+
+int spx_call_stack_get_frame_at(const spx_call_stack_t *stack, size_t index, spx_php_function_t *function)
+{
+    if (!stack) {
+        spx_error_set(SPX_ERR_INVALID_CONFIG, "Stack cannot be NULL");
+        return -1;
+    }
+
+    if (index >= stack->depth) {
+        spx_error_set(SPX_ERR_INTERNAL, "Index out of bounds");
+        return -1;
+    }
+
+    if (function) {
+        *function = stack->frames[index];
+    }
+
+    return 0;
+}
