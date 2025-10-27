@@ -235,7 +235,8 @@ static void tracing_profiler_call_start(spx_profiler_t * base_profiler, const sp
     stack_frame_t * frame = &profiler->stack.frames[profiler->stack.depth];
     frame->func_table_entry = func_table_get_entry(
         &profiler->func_table,
-        function
+        function,
+        profiler->string_pool
     );
 
     if (!frame->func_table_entry) {
@@ -244,6 +245,9 @@ static void tracing_profiler_call_start(spx_profiler_t * base_profiler, const sp
 
     frame->start_metric_values = cur_metric_values;
     METRIC_VALUES_ZERO(frame->children_metric_values);
+
+    /* ENH-1: Initialize peak metrics with starting values */
+    frame->peak_metric_values = cur_metric_values;
 
     spx_profiler_event_t event;
     fill_event(
@@ -306,6 +310,9 @@ static void tracing_profiler_call_end(spx_profiler_t * base_profiler)
     if (!frame->func_table_entry) {
         return;
     }
+
+    /* ENH-1: Update peak metrics for this span */
+    METRIC_VALUES_MAX(frame->peak_metric_values, cur_metric_values);
 
     spx_profiler_func_table_entry_t * entry = frame->func_table_entry;
 
@@ -492,7 +499,8 @@ static int func_table_hmap_cmp_key(const void * va, const void * vb)
 
 static spx_profiler_func_table_entry_t * func_table_get_entry(
     func_table_t * func_table,
-    const spx_php_function_t * function
+    const spx_php_function_t * function,
+    spx_string_pool_t * string_pool
 ) {
     if (func_table->size == func_table->capacity) {
         return spx_hmap_get_value(func_table->hmap, function);
@@ -525,16 +533,16 @@ static spx_profiler_func_table_entry_t * func_table_get_entry(
     entry->function = *function;
 
     /*
-     *  Review needed: workaround for a lifespan issue
-     *  These allocations should be useless in many cases...
+     *  FIXED: Use string pool instead of strdup() - eliminates malloc in hot path.
+     *  String pool provides memory-efficient interning with no per-string allocation overhead.
      */
-    entry->function.func_name = strdup(entry->function.func_name);
-    entry->function.class_name = strdup(entry->function.class_name);
+    entry->function.func_name = spx_string_pool_intern(string_pool, entry->function.func_name);
+    entry->function.class_name = spx_string_pool_intern(string_pool, entry->function.class_name);
     if (
         !entry->function.func_name
         || !entry->function.class_name
     ) {
-        spx_utils_die("Cannot dup function / class name\n");
+        spx_utils_die("Cannot intern function / class name\n");
     }
 
     entry->stats.called = 0;
@@ -551,18 +559,12 @@ static spx_profiler_func_table_entry_t * func_table_get_entry(
 static void func_table_reset(func_table_t * func_table)
 {
     /*
-     *  Free duped function/class names, see workaround in func_table_get_entry()
+     *  String pool handles cleanup - no need to free individual names
      */
-    size_t i;
-    for (i = 0; i < func_table->size; i++) {
-        spx_profiler_func_table_entry_t * entry = &func_table->entries[i];
-
-        free((char *)entry->function.func_name);
-        free((char *)entry->function.class_name);
-    }
-
     func_table->size = 0;
-    spx_hmap_reset(func_table->hmap);
+    if (func_table->hmap) {
+        spx_hmap_reset(func_table->hmap);
+    }
 }
 
 static void fill_event(
