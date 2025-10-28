@@ -139,6 +139,7 @@ void spx_call_stack_clear(spx_call_stack_t *stack);
  * @param function Output: frame at the given index (if not NULL)
  * @return 0 on success, -1 if index out of bounds
  */
-int spx_call_stack_get_frame_at(const spx_call_stack_t *stack, size_t index, spx_php_function_t *function);
+int spx_call_stack_get_frame_at(const spx_call_stack_t *stack, size_t index,
+                                spx_php_function_t *function);
 
 #endif /* SPX_CALL_STACK_H */

@@ -19,10 +19,10 @@
 
 #if defined(USE_SIGNAL)
 
+#include "spx_error.h"
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "spx_error.h"
 
 struct spx_signal_handler_t {
     int handler_set;
@@ -90,7 +90,7 @@ int spx_signal_handler_install(spx_signal_handler_t *handler)
     }
 
     if (handler->handler_set) {
-        return 0;  /* Already installed */
+        return 0; /* Already installed */
     }
 
     /* Set global handler for signal callback */
@@ -151,7 +151,7 @@ int spx_signal_handler_get_signo(const spx_signal_handler_t *handler)
 }
 
 void spx_signal_handler_set_terminate_callback(spx_signal_handler_t *handler,
-                                                 spx_signal_terminate_fn callback)
+                                               spx_signal_terminate_fn callback)
 {
     if (handler) {
         handler->terminate_callback = callback;

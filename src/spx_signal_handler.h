@@ -115,7 +115,7 @@ int spx_signal_handler_get_signo(const spx_signal_handler_t *handler);
  * @param callback Callback function
  */
 void spx_signal_handler_set_terminate_callback(spx_signal_handler_t *handler,
-                                                 spx_signal_terminate_fn callback);
+                                               spx_signal_terminate_fn callback);
 
 #endif /* defined(USE_SIGNAL) */
 

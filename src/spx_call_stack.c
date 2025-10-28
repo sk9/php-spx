@@ -148,7 +148,8 @@ void spx_call_stack_clear(spx_call_stack_t *stack)
     }
 }
 
-int spx_call_stack_get_frame_at(const spx_call_stack_t *stack, size_t index, spx_php_function_t *function)
+int spx_call_stack_get_frame_at(const spx_call_stack_t *stack, size_t index,
+                                spx_php_function_t *function)
 {
     if (!stack) {
         spx_error_set(SPX_ERR_INVALID_CONFIG, "Stack cannot be NULL");

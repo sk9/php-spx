@@ -52,16 +52,16 @@
 /* Metric ID type - replaces enum spx_metric_t for dynamic metrics */
 typedef size_t spx_metric_id_t;
 
-#define SPX_METRIC_ID_NONE ((spx_metric_id_t)-1)
+#define SPX_METRIC_ID_NONE ((spx_metric_id_t) - 1)
 
 /* Metric plugin definition */
 typedef struct {
-    const char *key;              /* Short key (e.g., "wt", "ct") */
-    const char *short_name;       /* Display name */
-    const char *name;             /* Full descriptive name */
-    spx_fmt_value_type_t type;    /* Value format type */
-    int releasable;               /* Whether metric can be released */
-    size_t (*handler)(void);      /* Function to collect metric value */
+    const char *key;           /* Short key (e.g., "wt", "ct") */
+    const char *short_name;    /* Display name */
+    const char *name;          /* Full descriptive name */
+    spx_fmt_value_type_t type; /* Value format type */
+    int releasable;            /* Whether metric can be released */
+    size_t (*handler)(void);   /* Function to collect metric value */
 } spx_metric_plugin_t;
 
 /* Metric info - returned by registry for queries */
@@ -125,7 +125,7 @@ size_t spx_metric_registry_get_count(void);
  * @param user_data User data passed to callback
  */
 void spx_metric_registry_foreach(void (*callback)(const spx_metric_info_ex_t *, void *),
-                                  void *user_data);
+                                 void *user_data);
 
 /**
  * Check if a metric ID is valid.

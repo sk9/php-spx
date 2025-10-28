@@ -16,16 +16,16 @@
  */
 
 #include "spx_session.h"
+#include "spx_error.h"
+#include "spx_profiler_sampler.h"
+#include "spx_profiler_tracer.h"
 #include "spx_reporter_fp.h"
 #include "spx_reporter_full.h"
 #include "spx_reporter_trace.h"
-#include "spx_profiler_tracer.h"
-#include "spx_profiler_sampler.h"
-#include "spx_error.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 #define REPORT_KEY_SIZE 512
 
@@ -92,34 +92,27 @@ int spx_session_start(spx_session_t *session, const char *data_dir)
 
     /* Create reporter based on config */
     switch (session->config.report) {
-        default:
-        case SPX_CONFIG_REPORT_FULL:
-            session->reporter = spx_reporter_full_create(data_dir);
-            if (session->reporter) {
-                const char *key = spx_reporter_full_get_key(session->reporter);
-                if (key) {
-                    snprintf(session->report_key, REPORT_KEY_SIZE, "%s", key);
-                }
+    default:
+    case SPX_CONFIG_REPORT_FULL:
+        session->reporter = spx_reporter_full_create(data_dir);
+        if (session->reporter) {
+            const char *key = spx_reporter_full_get_key(session->reporter);
+            if (key) {
+                snprintf(session->report_key, REPORT_KEY_SIZE, "%s", key);
             }
-            break;
+        }
+        break;
 
-        case SPX_CONFIG_REPORT_FLAT_PROFILE:
-            session->reporter = spx_reporter_fp_create(
-                session->config.fp_focus,
-                session->config.fp_inc,
-                session->config.fp_rel,
-                session->config.fp_limit,
-                session->config.fp_live,
-                session->config.fp_color
-            );
-            break;
+    case SPX_CONFIG_REPORT_FLAT_PROFILE:
+        session->reporter = spx_reporter_fp_create(
+            session->config.fp_focus, session->config.fp_inc, session->config.fp_rel,
+            session->config.fp_limit, session->config.fp_live, session->config.fp_color);
+        break;
 
-        case SPX_CONFIG_REPORT_TRACE:
-            session->reporter = spx_reporter_trace_create(
-                session->config.trace_file,
-                session->config.trace_safe
-            );
-            break;
+    case SPX_CONFIG_REPORT_TRACE:
+        session->reporter =
+            spx_reporter_trace_create(session->config.trace_file, session->config.trace_safe);
+        break;
     }
 
     if (!session->reporter) {
@@ -129,10 +122,7 @@ int spx_session_start(spx_session_t *session, const char *data_dir)
 
     /* Create tracer profiler */
     session->profiler = spx_profiler_tracer_create(
-        session->config.max_depth,
-        session->config.enabled_metrics,
-        session->reporter
-    );
+        session->config.max_depth, session->config.enabled_metrics, session->reporter);
 
     if (!session->profiler) {
         spx_error_set(SPX_ERR_INTERNAL, "Failed to create profiler");
@@ -141,10 +131,8 @@ int spx_session_start(spx_session_t *session, const char *data_dir)
 
     /* Wrap with sampler if configured */
     if (session->config.sampling_period > 0) {
-        spx_profiler_t *sampling_profiler = spx_profiler_sampler_create(
-            session->profiler,
-            session->config.sampling_period
-        );
+        spx_profiler_t *sampling_profiler =
+            spx_profiler_sampler_create(session->profiler, session->config.sampling_period);
 
         if (!sampling_profiler) {
             spx_error_set(SPX_ERR_INTERNAL, "Failed to create sampling profiler");

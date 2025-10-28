@@ -51,10 +51,7 @@ void spx_string_pool_destroy(spx_string_pool_t *pool);
  * @param total_allocated Output: total bytes allocated
  * @param total_interned Output: number of strings interned
  */
-void spx_string_pool_stats(
-    const spx_string_pool_t *pool,
-    size_t *total_allocated,
-    size_t *total_interned
-);
+void spx_string_pool_stats(const spx_string_pool_t *pool, size_t *total_allocated,
+                           size_t *total_interned);
 
 #endif /* SPX_STRING_POOL_H_DEFINED */

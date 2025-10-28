@@ -15,16 +15,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "spx_metric.h"
-#include "spx_metric_registry.h"
 #include "spx_metric_builtin.h"
+#include "spx_metric_registry.h"
+#include "spx_php.h"
 #include "spx_resource_stats.h"
 #include "spx_thread.h"
-#include "spx_php.h"
 
 struct spx_metric_collector_t {
     int enabled_metrics[SPX_METRIC_COUNT];
@@ -38,15 +37,14 @@ struct spx_metric_collector_t {
     double current_fixed_noise[SPX_METRIC_COUNT];
 };
 
-
-static void collect_raw_values(const int * enabled_metrics, double * current_values);
+static void collect_raw_values(const int *enabled_metrics, double *current_values);
 
 /*
  * Compatibility layer: Populate spx_metric_info[] from registry
  * This ensures existing code continues to work without modification.
  */
 static spx_metric_info_t metric_info_compat[SPX_METRIC_COUNT];
-const spx_metric_info_t spx_metric_info[SPX_METRIC_COUNT] = {0};  /* Will be copied from compat */
+const spx_metric_info_t spx_metric_info[SPX_METRIC_COUNT] = {0}; /* Will be copied from compat */
 
 static int metrics_initialized = 0;
 
@@ -76,7 +74,7 @@ void spx_metric_init(void)
     });
 
     /* Copy to const array (hack for compatibility) */
-    memcpy((void*)spx_metric_info, metric_info_compat, sizeof(spx_metric_info));
+    memcpy((void *) spx_metric_info, metric_info_compat, sizeof(spx_metric_info));
 
     metrics_initialized = 1;
 }
@@ -91,7 +89,7 @@ void spx_metric_shutdown(void)
     metrics_initialized = 0;
 }
 
-spx_metric_t spx_metric_get_by_key(const char * key)
+spx_metric_t spx_metric_get_by_key(const char *key)
 {
     if (!metrics_initialized) {
         return SPX_METRIC_NONE;
@@ -114,9 +112,9 @@ spx_metric_t spx_metric_get_by_key(const char * key)
     return SPX_METRIC_NONE;
 }
 
-spx_metric_collector_t * spx_metric_collector_create(const int * enabled_metrics)
+spx_metric_collector_t *spx_metric_collector_create(const int *enabled_metrics)
 {
-    spx_metric_collector_t * collector = malloc(sizeof(*collector));
+    spx_metric_collector_t *collector = malloc(sizeof(*collector));
     if (!collector) {
         return NULL;
     }
@@ -139,28 +137,26 @@ spx_metric_collector_t * spx_metric_collector_create(const int * enabled_metrics
     return collector;
 }
 
-void spx_metric_collector_destroy(spx_metric_collector_t * collector)
+void spx_metric_collector_destroy(spx_metric_collector_t *collector)
 {
     free(collector);
 }
 
-void spx_metric_collector_collect(spx_metric_collector_t * collector, double * values)
+void spx_metric_collector_collect(spx_metric_collector_t *collector, double *values)
 {
     double current_values[SPX_METRIC_COUNT];
 
     collect_raw_values(collector->enabled_metrics, current_values);
 
     /*
-     *  This branch is required to fix cpu / wall time inconsistency (cpu > wall time within a single thread).
+     *  This branch is required to fix cpu / wall time inconsistency (cpu > wall time within a
+     * single thread).
      */
-    if (
-        collector->enabled_metrics[SPX_METRIC_WALL_TIME] &&
-        collector->enabled_metrics[SPX_METRIC_CPU_TIME]
-    ) {
+    if (collector->enabled_metrics[SPX_METRIC_WALL_TIME] &&
+        collector->enabled_metrics[SPX_METRIC_CPU_TIME]) {
         const double ct_surplus =
-            (current_values[SPX_METRIC_CPU_TIME] - collector->last_values[SPX_METRIC_CPU_TIME])
-            - (current_values[SPX_METRIC_WALL_TIME] - collector->last_values[SPX_METRIC_WALL_TIME])
-        ;
+            (current_values[SPX_METRIC_CPU_TIME] - collector->last_values[SPX_METRIC_CPU_TIME]) -
+            (current_values[SPX_METRIC_WALL_TIME] - collector->last_values[SPX_METRIC_WALL_TIME]);
 
         if (ct_surplus > 0) {
             collector->ref_values[SPX_METRIC_CPU_TIME] += ct_surplus;
@@ -188,7 +184,7 @@ void spx_metric_collector_collect(spx_metric_collector_t * collector, double * v
     });
 }
 
-void spx_metric_collector_noise_barrier(spx_metric_collector_t * collector)
+void spx_metric_collector_noise_barrier(spx_metric_collector_t *collector)
 {
     double current_values[SPX_METRIC_COUNT];
     collect_raw_values(collector->enabled_metrics, current_values);
@@ -200,7 +196,7 @@ void spx_metric_collector_noise_barrier(spx_metric_collector_t * collector)
     }
 }
 
-void spx_metric_collector_add_fixed_noise(spx_metric_collector_t * collector, const double * noise)
+void spx_metric_collector_add_fixed_noise(spx_metric_collector_t *collector, const double *noise)
 {
     /* Optimization: Only add noise for enabled metrics */
     for (size_t i = 0; i < collector->enabled_count; i++) {
@@ -225,7 +221,7 @@ static size_t memoized_metric_value(spx_metric_t metric)
     return memoized_metric_values[metric].value;
 }
 
-static void collect_raw_values(const int * enabled_metrics, double * current_values)
+static void collect_raw_values(const int *enabled_metrics, double *current_values)
 {
     /* Optimization: Only reset memoization for potentially used metrics */
     SPX_METRIC_FOREACH(i, {

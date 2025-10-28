@@ -104,7 +104,7 @@ void spx_execution_context_set_handler(spx_execution_context_t *ctx,
  * @param ctx Context
  * @return Current handler, or NULL if none
  */
-const spx_execution_handler_t *spx_execution_context_get_handler(
-    const spx_execution_context_t *ctx);
+const spx_execution_handler_t *
+spx_execution_context_get_handler(const spx_execution_context_t *ctx);
 
 #endif /* SPX_EXECUTION_CONTEXT_H */

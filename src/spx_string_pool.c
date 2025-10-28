@@ -23,7 +23,8 @@ struct spx_string_pool_t {
     size_t total_interned;
 };
 
-spx_string_pool_t *spx_string_pool_create(void) {
+spx_string_pool_t *spx_string_pool_create(void)
+{
     spx_string_pool_t *pool = malloc(sizeof(*pool));
     if (!pool) {
         return NULL;
@@ -44,7 +45,8 @@ spx_string_pool_t *spx_string_pool_create(void) {
     return pool;
 }
 
-const char *spx_string_pool_intern(spx_string_pool_t *pool, const char *str) {
+const char *spx_string_pool_intern(spx_string_pool_t *pool, const char *str)
+{
     if (!str) {
         return NULL;
     }
@@ -74,7 +76,8 @@ const char *spx_string_pool_intern(spx_string_pool_t *pool, const char *str) {
     return dest;
 }
 
-void spx_string_pool_destroy(spx_string_pool_t *pool) {
+void spx_string_pool_destroy(spx_string_pool_t *pool)
+{
     if (!pool) {
         return;
     }
@@ -89,11 +92,9 @@ void spx_string_pool_destroy(spx_string_pool_t *pool) {
     free(pool);
 }
 
-void spx_string_pool_stats(
-    const spx_string_pool_t *pool,
-    size_t *total_allocated,
-    size_t *total_interned
-) {
+void spx_string_pool_stats(const spx_string_pool_t *pool, size_t *total_allocated,
+                           size_t *total_interned)
+{
     if (total_allocated) {
         *total_allocated = pool->total_allocated;
     }

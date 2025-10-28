@@ -18,9 +18,9 @@
 #include "spx_metric_registry.h"
 #include "spx_error.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 #define INITIAL_CAPACITY 32
 #define MAX_KEY_LENGTH 64
@@ -76,8 +76,7 @@ static int ensure_capacity(void)
     }
 
     size_t new_capacity = registry.capacity * 2;
-    metric_entry_t *new_metrics = realloc(registry.metrics,
-                                          new_capacity * sizeof(metric_entry_t));
+    metric_entry_t *new_metrics = realloc(registry.metrics, new_capacity * sizeof(metric_entry_t));
     if (!new_metrics) {
         spx_error_set(SPX_ERR_OUT_OF_MEMORY, "Failed to expand metric registry");
         return 0;
@@ -124,10 +123,9 @@ spx_metric_id_t spx_metric_registry_register(const spx_metric_plugin_t *plugin)
 
     /* Copy strings into storage */
     snprintf(entry->key_storage, MAX_KEY_LENGTH, "%s", plugin->key);
-    snprintf(entry->short_name_storage, sizeof(entry->short_name_storage),
-             "%s", plugin->short_name);
-    snprintf(entry->name_storage, sizeof(entry->name_storage),
-             "%s", plugin->name);
+    snprintf(entry->short_name_storage, sizeof(entry->short_name_storage), "%s",
+             plugin->short_name);
+    snprintf(entry->name_storage, sizeof(entry->name_storage), "%s", plugin->name);
 
     /* Set up info structure */
     entry->info.id = id;
@@ -172,7 +170,7 @@ size_t spx_metric_registry_get_count(void)
 }
 
 void spx_metric_registry_foreach(void (*callback)(const spx_metric_info_ex_t *, void *),
-                                  void *user_data)
+                                 void *user_data)
 {
     if (!registry.initialized || !callback) {
         return;
