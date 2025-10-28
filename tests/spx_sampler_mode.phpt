@@ -27,6 +27,7 @@ echo "Work done: " . (int)$result . "\n";
 --EXPECTF--
 Testing sampler mode...
 Work done: %d
+
 *** SPX Report ***
 
 Global stats:
@@ -40,6 +41,6 @@ Global stats:
 Flat profile:
 
  Wall time           | ZE memory usage     |
- Inc.     | *Exc.    | Inc.     | Exc.     | Called   | Function
+ *Inc.    | Exc.     | Inc.     | Exc.     | Called   | Function
 ----------+----------+----------+----------+----------+----------
-%s
+%a

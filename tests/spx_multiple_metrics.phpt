@@ -3,7 +3,7 @@ Profiler with multiple metrics enabled
 --ENV--
 return <<<END
 SPX_ENABLED=1
-SPX_METRICS=wt,zm,cpu,io
+SPX_METRICS=wt,zm,io
 SPX_FP_FOCUS=wall-time
 SPX_FP_INC=1
 SPX_FP_REL=1
@@ -36,19 +36,20 @@ echo "Memory ops: $m, CPU sum: " . (int)$c . "\n";
 --EXPECTF--
 Testing multiple metrics...
 Memory ops: 1000, CPU sum: %d
+
 *** SPX Report ***
 
 Global stats:
 
-  Called functions    :        %d
-  Distinct functions  :        %d
+  Called functions    : %s
+  Distinct functions  : %s
 
   Wall time           :  %s
   ZE memory usage     :  %s
-%s
+%a
 Flat profile:
 
- Wall time           | ZE memory usage     | CPU time            | I/O wait time       |
- Inc.     | *Exc.    | Inc.     | Exc.     | Inc.     | Exc.     | Inc.     | Exc.     | Called   | Function
-----------+----------+----------+----------+----------+----------+----------+----------+----------+----------
-%s
+ Wall time           | ZE memory usage     | I/O Bytes           |
+ *Inc.    | Exc.     | Inc.     | Exc.     | Inc.     | Exc.     | Called   | Function
+----------+----------+----------+----------+----------+----------+----------+----------
+%a

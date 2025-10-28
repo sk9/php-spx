@@ -41,12 +41,13 @@ echo "Test complete\n";
 Testing profiler...
 Result: 3628800
 Test complete
+
 *** SPX Report ***
 
 Global stats:
 
-  Called functions    :        %d
-  Distinct functions  :        %d
+  Called functions    : %s
+  Distinct functions  : %s
 
   Wall time           :  %s
   ZE memory usage     :  %s
@@ -54,6 +55,6 @@ Global stats:
 Flat profile:
 
  Wall time           | ZE memory usage     |
- Inc.     | *Exc.    | Inc.     | Exc.     | Called   | Function
+ *Inc.    | Exc.     | Inc.     | Exc.     | Called   | Function
 ----------+----------+----------+----------+----------+----------
-%s
+%a

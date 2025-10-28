@@ -29,23 +29,5 @@ echo "Result: $result\n";
 --EXPECTF--
 Testing trace output...
 Result: level3 -> level2 -> level1
-*** SPX Report ***
 
-Global stats:
-
-  Called functions    :        %d
-  Distinct functions  :        %d
-
-  Wall time           :  %s
-  ZE memory usage     :  %s
-
-Flat profile:
-
- Wall time           | ZE memory usage     |
- Inc.     | *Exc.    | Inc.     | Exc.     | Called   | Function
-----------+----------+----------+----------+----------+----------
-%s
-
-Call tree:
-
-%s
+SPX trace file: %s
