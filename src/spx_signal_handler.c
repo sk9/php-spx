@@ -15,6 +15,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#if !defined(ZTS) && !defined(_WIN32)
+#define USE_SIGNAL
+#endif
+
 #include "spx_signal_handler.h"
 
 #if defined(USE_SIGNAL)
