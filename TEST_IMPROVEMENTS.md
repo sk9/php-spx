@@ -2,31 +2,39 @@
 
 ## Summary
 
-This document summarizes the comprehensive testing improvements made to the PHP-SPX profiler extension.
+This document summarizes the comprehensive testing improvements made to the PHP-SPX profiler extension across two phases.
 
 ## Test Results
 
-### Before Improvements
+### Before Any Improvements
 - **Tests Passing**: 26/60 (43.3%)
 - **Tests Skipped**: 34/60 (56.7%)
 - **Tests Failed**: 0
 - **Code Coverage**: 43.4% lines, 49.4% functions
 
-### After Improvements
+### After Phase 1 (Skipped Tests Analysis)
 - **Tests Passing**: 53/60 (88.3%)
 - **Tests Skipped**: 7/60 (11.7%)
 - **Tests Failed**: 0
 - **Code Coverage**: 82.2% lines, 85.7% functions
 
-### Improvement Metrics
-- **+27 tests** now running (103% increase)
-- **+38.8%** line coverage increase
-- **+36.3%** function coverage increase
-- **100% pass rate** maintained throughout
+### After Phase 2 (Coverage Improvement)
+- **Tests Passing**: 56/63 (88.9%)
+- **Tests Skipped**: 7/63 (11.1%)
+- **Tests Failed**: 0
+- **Code Coverage**: 82.8% lines, 85.7% functions
+
+### Overall Improvement Metrics
+- **+30 tests** now running (115% increase from baseline)
+- **+39.4%** line coverage increase (43.4% → 82.8%)
+- **+36.3%** function coverage increase (49.4% → 85.7%)
+- **100% pass rate** maintained throughout all phases
 
 ## Key Achievements
 
-### 1. Fixed Integration Test Failures (Iteration 1-5)
+### Phase 1: Test Suite Stabilization and Expansion
+
+#### 1. Fixed Integration Test Failures (Iteration 1-5)
 Fixed all 6 failing integration tests through systematic analysis:
 
 - `spx_profiler_basic.phpt` - Basic profiler functionality
@@ -42,7 +50,7 @@ Fixed all 6 failing integration tests through systematic analysis:
 - Metrics configuration: removed unavailable CPU metric
 - Trace mode: corrected expected output format
 
-### 2. Enabled CGI/Web Tests
+#### 2. Enabled CGI/Web Tests
 Installed and configured `php-cgi` to enable web-related test suites:
 
 **Enabled Test Suites:**
@@ -54,7 +62,7 @@ Installed and configured `php-cgi` to enable web-related test suites:
 
 **Total**: 27 previously skipped tests now running
 
-### 3. Code Coverage Analysis
+#### 3. Initial Code Coverage Analysis
 
 #### Files with Excellent Coverage (>95%)
 - `spx_profiler.c`: 100% (5/5 lines)
@@ -85,7 +93,7 @@ Installed and configured `php-cgi` to enable web-related test suites:
 - `spx_str_builder.c`: 76.8% (86/112 lines) - String builder utility
 - `spx_string_pool.c`: 65.1% (28/43 lines) - String pool utility
 
-### 4. Code Quality Improvements
+#### 4. Code Quality Improvements
 
 Applied `clang-format` to all source files:
 - Consistent pointer declaration style
@@ -94,6 +102,69 @@ Applied `clang-format` to all source files:
 - Consistent spacing and indentation
 
 **Result**: 1,111 insertions, 1,736 deletions across 40 files
+
+### Phase 2: Code Coverage Improvement (5 Iterations)
+
+Following YAGNI, DRY, SOLID, and clean architecture principles, three targeted integration tests were created to exercise previously uncovered code paths.
+
+#### New Tests Created
+
+**1. spx_string_pool_stress.phpt** - String Pool Block Overflow Test
+- Creates 200 unique function names (>10KB of strings)
+- Triggers string pool block allocation (POOL_BLOCK_SIZE = 8192)
+- Tests block overflow and chaining logic
+- **Result**: spx_string_pool.c coverage: 65.1% → 81.4% (+16.3%)
+
+**2. spx_large_numbers.phpt** - Large Number Formatting Test
+- Tests large arrays (100K elements) generating large memory values
+- Tests deep recursion (50 levels) for call stack formatting
+- Tests large string operations (10KB strings)
+- Exercises spx_str_builder_append_* functions with edge cases
+- **Result**: spx_str_builder.c coverage maintained at 76.8%
+
+**3. spx_edge_cases_metrics.phpt** - Multiple Metrics Reporting Test
+- Tests 5 metrics simultaneously (wt, ct, it, zm, io)
+- Uses non-default focus setting (CPU time instead of wall time)
+- Tests empty functions, CPU-intensive, and memory-intensive workloads
+- Exercises reporter formatting for various metric combinations
+- **Result**: spx_reporter_fp.c coverage: 77.6% → 81.4% (+3.8%)
+
+#### Coverage Improvements by File
+
+**Significant Improvements:**
+- `spx_string_pool.c`: **65.1% → 81.4%** (+16.3%, +7 lines)
+- `spx_reporter_fp.c`: **77.6% → 81.4%** (+3.8%, +6 lines)
+
+**Overall:**
+- **Lines**: 82.2% → 82.8% (+0.6%, +17 lines, 2170 → 2187)
+- **Functions**: 85.7% (unchanged, already excellent)
+- **Tests**: 53 → 56 passing (+3 tests)
+
+#### Architecture Principles Applied
+
+**SOLID:**
+- Single Responsibility: Each test focuses on one specific subsystem
+- Open/Closed: Tests extend coverage without modifying existing tests
+- Liskov Substitution: Test scenarios properly substitute real usage
+- Interface Segregation: Tests use minimal necessary SPX features
+- Dependency Inversion: Tests depend on SPX API, not implementation
+
+**DRY (Don't Repeat Yourself):**
+- Common test structure reused across all .phpt files
+- Consistent ENV configuration patterns
+- Reusable expectation patterns (%s, %d, %a)
+
+**YAGNI (You Aren't Gonna Need It):**
+- Only essential test scenarios added
+- No speculative or "nice to have" tests
+- Minimal test data sufficient to trigger code paths
+- No over-engineered test infrastructure
+
+**Clean Architecture:**
+- Clear test names describing intent
+- Isolated test execution (no dependencies)
+- Predictable test behavior
+- Clean separation of test data and assertions
 
 ## Remaining Skipped Tests
 
