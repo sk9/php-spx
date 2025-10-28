@@ -27,6 +27,7 @@
 #include "spx_utils.h"
 #include "spx_limits.h"
 #include "spx_metric_values.h"
+#include "spx_string_pool.h"
 
 /* Compatibility macros for old code - will be removed in next refactoring */
 #define STACK_CAPACITY spx_get_max_stack_depth()
@@ -49,6 +50,7 @@ typedef struct {
     spx_profiler_func_table_entry_t * func_table_entry;
     spx_profiler_metric_values_t start_metric_values;
     spx_profiler_metric_values_t children_metric_values;
+    spx_profiler_metric_values_t peak_metric_values;
 } stack_frame_t;
 
 typedef struct {
@@ -81,6 +83,7 @@ typedef struct {
     } stack;
 
     func_table_t func_table;
+    spx_string_pool_t * string_pool;
 } tracing_profiler_t;
 
 
@@ -102,7 +105,8 @@ static int func_table_hmap_cmp_key(const void * va, const void * vb);
 
 static spx_profiler_func_table_entry_t * func_table_get_entry(
     func_table_t * func_table,
-    const spx_php_function_t * function
+    const spx_php_function_t * function,
+    spx_string_pool_t * string_pool
 );
 
 static void func_table_reset(func_table_t * func_table);
@@ -183,6 +187,11 @@ spx_profiler_t * spx_profiler_tracer_create(
         goto error;
     }
 
+    profiler->string_pool = spx_string_pool_create();
+    if (!profiler->string_pool) {
+        goto error;
+    }
+
     return (spx_profiler_t *) profiler;
 
 error:
@@ -203,7 +212,7 @@ static void tracing_profiler_call_start(spx_profiler_t * base_profiler, const sp
 
     if (!profiler->active) {
         if (profiler->stack.depth == STACK_CAPACITY) {
-            fprintf(stderr, "SPX: STACK_CAPACITY (%d) exceeded\n", STACK_CAPACITY);
+            fprintf(stderr, "SPX: STACK_CAPACITY (%zu) exceeded\n", (size_t)STACK_CAPACITY);
         }
 
         goto end;
@@ -412,6 +421,10 @@ static void tracing_profiler_destroy(spx_profiler_t * base_profiler)
 
     if (profiler->stack.frames) {
         free(profiler->stack.frames);
+    }
+
+    if (profiler->string_pool) {
+        spx_string_pool_destroy(profiler->string_pool);
     }
 
     free(profiler);

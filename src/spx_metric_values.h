@@ -33,7 +33,8 @@ static inline void spx_metric_values_add(
     spx_profiler_metric_values_t *dest,
     const spx_profiler_metric_values_t *src
 ) {
-    for (size_t i = 0; i < SPX_METRIC_COUNT; i++) {
+    size_t i;
+    for (i = 0; i < SPX_METRIC_COUNT; i++) {
         dest->values[i] += src->values[i];
     }
 }
@@ -48,7 +49,8 @@ static inline void spx_metric_values_sub(
     spx_profiler_metric_values_t *dest,
     const spx_profiler_metric_values_t *src
 ) {
-    for (size_t i = 0; i < SPX_METRIC_COUNT; i++) {
+    size_t i;
+    for (i = 0; i < SPX_METRIC_COUNT; i++) {
         dest->values[i] -= src->values[i];
     }
 }
@@ -63,7 +65,8 @@ static inline void spx_metric_values_max(
     spx_profiler_metric_values_t *dest,
     const spx_profiler_metric_values_t *src
 ) {
-    for (size_t i = 0; i < SPX_METRIC_COUNT; i++) {
+    size_t i;
+    for (i = 0; i < SPX_METRIC_COUNT; i++) {
         if (src->values[i] > dest->values[i]) {
             dest->values[i] = src->values[i];
         }

@@ -25,8 +25,8 @@
 #include <signal.h>
 #endif
 
-#include "ext/standard/info.h"
 #include "php_spx.h"
+#include "ext/standard/info.h"
 
 #include "spx_call_stack.h"
 #include "spx_config.h"
@@ -147,9 +147,6 @@ static void profiling_handler_ex_hook_before(void);
 static void profiling_handler_ex_hook_after(void);
 #ifdef USE_SIGNAL
 static void profiling_handler_sig_terminate(void);
-static void profiling_handler_sig_handler(int signo);
-static void profiling_handler_sig_set_handler(void);
-static void profiling_handler_sig_unset_handler(void);
 #endif
 
 static void http_ui_handler_init(void);
@@ -538,7 +535,7 @@ static void profiling_handler_init(void)
 #endif
 
     /* Initialize call stack with configurable capacity */
-    context.profiling_handler.call_stack = spx_call_stack_create(spx_limits_get_max_stack_depth());
+    context.profiling_handler.call_stack = spx_call_stack_create(spx_get_max_stack_depth());
     if (!context.profiling_handler.call_stack) {
         spx_php_log_notice("profiling_handler_init(): failed to create call stack");
         return;

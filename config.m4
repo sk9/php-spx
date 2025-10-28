@@ -81,7 +81,11 @@ if test "$PHP_SPX" = "yes"; then
         src/spx_stdio.c             \
         src/spx_config.c            \
         src/spx_utils.c             \
-        src/spx_fmt.c,
+        src/spx_fmt.c               \
+        src/spx_limits.c            \
+        src/spx_call_stack.c        \
+        src/spx_signal_handler.c    \
+        src/spx_string_pool.c,
         $ext_shared)
 
     PHP_ADD_MAKEFILE_FRAGMENT

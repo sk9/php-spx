@@ -187,10 +187,11 @@ void spx_metric_collector_collect(spx_metric_collector_t *collector, double *val
 void spx_metric_collector_noise_barrier(spx_metric_collector_t *collector)
 {
     double current_values[SPX_METRIC_COUNT];
+    size_t i;
     collect_raw_values(collector->enabled_metrics, current_values);
 
     /* Optimization: Only update noise for enabled metrics */
-    for (size_t i = 0; i < collector->enabled_count; i++) {
+    for (i = 0; i < collector->enabled_count; i++) {
         spx_metric_t idx = collector->enabled_indices[i];
         collector->current_fixed_noise[idx] += current_values[idx] - collector->last_values[idx];
     }
@@ -198,8 +199,9 @@ void spx_metric_collector_noise_barrier(spx_metric_collector_t *collector)
 
 void spx_metric_collector_add_fixed_noise(spx_metric_collector_t *collector, const double *noise)
 {
+    size_t i;
     /* Optimization: Only add noise for enabled metrics */
-    for (size_t i = 0; i < collector->enabled_count; i++) {
+    for (i = 0; i < collector->enabled_count; i++) {
         spx_metric_t idx = collector->enabled_indices[i];
         collector->current_fixed_noise[idx] += noise[idx];
     }
