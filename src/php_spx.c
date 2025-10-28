@@ -25,8 +25,8 @@
 #include <signal.h>
 #endif
 
-#include "php_spx.h"
 #include "ext/standard/info.h"
+#include "php_spx.h"
 
 #include "spx_call_stack.h"
 #include "spx_config.h"

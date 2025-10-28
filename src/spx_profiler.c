@@ -15,13 +15,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #include <stdlib.h>
 
 #include "spx_profiler.h"
 
-
-void spx_profiler_reporter_destroy(spx_profiler_reporter_t * reporter)
+void spx_profiler_reporter_destroy(spx_profiler_reporter_t *reporter)
 {
     if (reporter->destroy) {
         reporter->destroy(reporter);

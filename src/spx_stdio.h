@@ -15,7 +15,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #ifndef SPX_STDIO_H_DEFINED
 #define SPX_STDIO_H_DEFINED
 

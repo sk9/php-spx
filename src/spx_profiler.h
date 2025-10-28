@@ -15,14 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #ifndef SPX_PROFILER_H_DEFINED
 #define SPX_PROFILER_H_DEFINED
 
 #include <stddef.h>
 
-#include "spx_output_stream.h"
 #include "spx_metric.h"
+#include "spx_output_stream.h"
 #include "spx_php.h"
 
 typedef struct {
@@ -51,25 +50,25 @@ typedef enum {
 typedef struct {
     spx_profiler_event_type_t type;
 
-    const int * enabled_metrics;
+    const int *enabled_metrics;
 
     size_t called;
-    const spx_profiler_metric_values_t * max;
-    const spx_profiler_metric_values_t * cum;
+    const spx_profiler_metric_values_t *max;
+    const spx_profiler_metric_values_t *cum;
 
     struct {
         size_t size;
         size_t capacity;
-        const spx_profiler_func_table_entry_t * entries;
+        const spx_profiler_func_table_entry_t *entries;
     } func_table;
 
     size_t depth;
 
-    const spx_profiler_func_table_entry_t * caller;
-    const spx_profiler_func_table_entry_t * callee;
-    
-    const spx_profiler_metric_values_t * inc;
-    const spx_profiler_metric_values_t * exc;
+    const spx_profiler_func_table_entry_t *caller;
+    const spx_profiler_func_table_entry_t *callee;
+
+    const spx_profiler_metric_values_t *inc;
+    const spx_profiler_metric_values_t *exc;
 } spx_profiler_event_t;
 
 typedef enum {
@@ -78,22 +77,20 @@ typedef enum {
 } spx_profiler_reporter_cost_t;
 
 typedef struct spx_profiler_reporter_t {
-    spx_profiler_reporter_cost_t (*notify) (
-        struct spx_profiler_reporter_t * reporter,
-        const spx_profiler_event_t * event
-    );
+    spx_profiler_reporter_cost_t (*notify)(struct spx_profiler_reporter_t *reporter,
+                                           const spx_profiler_event_t *event);
 
-    void (*destroy) (struct spx_profiler_reporter_t * reporter);
+    void (*destroy)(struct spx_profiler_reporter_t *reporter);
 } spx_profiler_reporter_t;
 
-void spx_profiler_reporter_destroy(spx_profiler_reporter_t * reporter);
+void spx_profiler_reporter_destroy(spx_profiler_reporter_t *reporter);
 
 typedef struct spx_profiler_t {
-    void (*call_start)(struct spx_profiler_t * profiler, const spx_php_function_t * function);
-    void (*call_end)(struct spx_profiler_t * profiler);
+    void (*call_start)(struct spx_profiler_t *profiler, const spx_php_function_t *function);
+    void (*call_end)(struct spx_profiler_t *profiler);
 
-    void (*finalize)(struct spx_profiler_t * profiler);
-    void (*destroy)(struct spx_profiler_t * profiler);
+    void (*finalize)(struct spx_profiler_t *profiler);
+    void (*destroy)(struct spx_profiler_t *profiler);
 } spx_profiler_t;
 
 #endif /* SPX_PROFILER_H_DEFINED */

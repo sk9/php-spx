@@ -15,21 +15,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 
 // #include <unistd.h>
 
-#include "spx_reporter_fp.h"
-#include "spx_resource_stats.h"
 #include "spx_output_stream.h"
 #include "spx_php.h"
+#include "spx_reporter_fp.h"
+#include "spx_resource_stats.h"
 #include "spx_stdio.h"
 #include "spx_thread.h"
 #include "spx_utils.h"
-
 
 typedef struct {
     spx_profiler_reporter_t base;
@@ -41,7 +39,7 @@ typedef struct {
     int live;
     int color;
 
-    spx_output_stream_t * output;
+    spx_output_stream_t *output;
     struct {
         int stdout_fd;
         int stderr_fd;
@@ -49,28 +47,24 @@ typedef struct {
 
     size_t last_ts_ms;
     size_t last_line_count;
-    const spx_profiler_func_table_entry_t ** top_entries;
+    const spx_profiler_func_table_entry_t **top_entries;
 } fp_reporter_t;
 
-static const SPX_THREAD_TLS fp_reporter_t * entry_cmp_reporter;
+static const SPX_THREAD_TLS fp_reporter_t *entry_cmp_reporter;
 
-static spx_profiler_reporter_cost_t fp_notify(spx_profiler_reporter_t * reporter, const spx_profiler_event_t * event);
-static void fp_destroy(spx_profiler_reporter_t * reporter);
+static spx_profiler_reporter_cost_t fp_notify(spx_profiler_reporter_t *reporter,
+                                              const spx_profiler_event_t *event);
+static void fp_destroy(spx_profiler_reporter_t *reporter);
 
-static int entry_cmp(const void * a, const void * b);
-static int entry_cmp_r(const void * a, const void * b, const fp_reporter_t * reporter);
-static size_t print_report(fp_reporter_t * reporter, const spx_profiler_event_t * event);
-static const char * get_value_ansi_fmt(double v);
+static int entry_cmp(const void *a, const void *b);
+static int entry_cmp_r(const void *a, const void *b, const fp_reporter_t *reporter);
+static size_t print_report(fp_reporter_t *reporter, const spx_profiler_event_t *event);
+static const char *get_value_ansi_fmt(double v);
 
-spx_profiler_reporter_t * spx_reporter_fp_create(
-    spx_metric_t focus,
-    int inc,
-    int rel,
-    size_t limit,
-    int live,
-    int color
-) {
-    fp_reporter_t * reporter = malloc(sizeof(*reporter));
+spx_profiler_reporter_t *spx_reporter_fp_create(spx_metric_t focus, int inc, int rel, size_t limit,
+                                                int live, int color)
+{
+    fp_reporter_t *reporter = malloc(sizeof(*reporter));
     if (!reporter) {
         return NULL;
     }
@@ -83,10 +77,8 @@ spx_profiler_reporter_t * spx_reporter_fp_create(
     reporter->rel = rel;
     reporter->limit = limit;
 
-    reporter->live = live
-        && spx_php_are_ansi_sequences_supported()
-        && spx_stdio_disabling_supported()
-    ;
+    reporter->live =
+        live && spx_php_are_ansi_sequences_supported() && spx_stdio_disabling_supported();
 
     reporter->color = color && spx_php_are_ansi_sequences_supported();
 
@@ -117,7 +109,7 @@ spx_profiler_reporter_t * spx_reporter_fp_create(
 
     reporter->last_ts_ms = 0;
     reporter->last_line_count = 0;
-    
+
     reporter->top_entries = malloc(limit * sizeof(*reporter->top_entries));
     if (!reporter->top_entries) {
         goto error;
@@ -126,18 +118,19 @@ spx_profiler_reporter_t * spx_reporter_fp_create(
     return (spx_profiler_reporter_t *) reporter;
 
 error:
-    spx_profiler_reporter_destroy((spx_profiler_reporter_t *)reporter);
+    spx_profiler_reporter_destroy((spx_profiler_reporter_t *) reporter);
 
     return NULL;
 }
 
-static spx_profiler_reporter_cost_t fp_notify(spx_profiler_reporter_t * reporter, const spx_profiler_event_t * event)
+static spx_profiler_reporter_cost_t fp_notify(spx_profiler_reporter_t *reporter,
+                                              const spx_profiler_event_t *event)
 {
     if (event->type == SPX_PROFILER_EVENT_CALL_START) {
         return SPX_PROFILER_REPORTER_COST_LIGHT;
     }
 
-    fp_reporter_t * fp_reporter = (fp_reporter_t *) reporter;
+    fp_reporter_t *fp_reporter = (fp_reporter_t *) reporter;
     if (event->type == SPX_PROFILER_EVENT_CALL_END) {
         if (!fp_reporter->live) {
             return SPX_PROFILER_REPORTER_COST_LIGHT;
@@ -164,9 +157,9 @@ static spx_profiler_reporter_cost_t fp_notify(spx_profiler_reporter_t * reporter
     return SPX_PROFILER_REPORTER_COST_HEAVY;
 }
 
-static void fp_destroy(spx_profiler_reporter_t * reporter)
+static void fp_destroy(spx_profiler_reporter_t *reporter)
 {
-    fp_reporter_t * fp_reporter = (fp_reporter_t *) reporter;
+    fp_reporter_t *fp_reporter = (fp_reporter_t *) reporter;
 
     if (fp_reporter->top_entries) {
         free(fp_reporter->top_entries);
@@ -185,7 +178,7 @@ static void fp_destroy(spx_profiler_reporter_t * reporter)
     }
 }
 
-static int entry_cmp(const void * a, const void * b)
+static int entry_cmp(const void *a, const void *b)
 {
     /*
      *  The use of entry_cmp_reporter TLS variable is required as a workaround for the
@@ -201,10 +194,12 @@ static int entry_cmp(const void * a, const void * b)
     return entry_cmp_r(a, b, entry_cmp_reporter);
 }
 
-static int entry_cmp_r(const void * a, const void * b, const fp_reporter_t * reporter)
+static int entry_cmp_r(const void *a, const void *b, const fp_reporter_t *reporter)
 {
-    const spx_profiler_func_table_entry_t * entry_a = (*((const spx_profiler_func_table_entry_t **) a));
-    const spx_profiler_func_table_entry_t * entry_b = (*((const spx_profiler_func_table_entry_t **) b));
+    const spx_profiler_func_table_entry_t *entry_a =
+        (*((const spx_profiler_func_table_entry_t **) a));
+    const spx_profiler_func_table_entry_t *entry_b =
+        (*((const spx_profiler_func_table_entry_t **) b));
 
     double high_a, low_a;
     double high_b, low_b;
@@ -212,13 +207,13 @@ static int entry_cmp_r(const void * a, const void * b, const fp_reporter_t * rep
     if (reporter->inc) {
         high_a = entry_a->stats.inc.values[reporter->focus];
         high_b = entry_b->stats.inc.values[reporter->focus];
-        low_a  = entry_a->stats.exc.values[reporter->focus];
-        low_b  = entry_b->stats.exc.values[reporter->focus];
+        low_a = entry_a->stats.exc.values[reporter->focus];
+        low_b = entry_b->stats.exc.values[reporter->focus];
     } else {
         high_a = entry_a->stats.exc.values[reporter->focus];
         high_b = entry_b->stats.exc.values[reporter->focus];
-        low_a  = entry_a->stats.inc.values[reporter->focus];
-        low_b  = entry_b->stats.inc.values[reporter->focus];
+        low_a = entry_a->stats.inc.values[reporter->focus];
+        low_b = entry_b->stats.inc.values[reporter->focus];
     }
 
     if (high_a != high_b) {
@@ -233,7 +228,7 @@ static int entry_cmp_r(const void * a, const void * b, const fp_reporter_t * rep
     return ((int) entry_a->idx) - ((int) entry_b->idx);
 }
 
-static size_t print_report(fp_reporter_t * reporter, const spx_profiler_event_t * event)
+static size_t print_report(fp_reporter_t *reporter, const spx_profiler_event_t *event)
 {
     if (event->func_table.size == 0) {
         return 0;
@@ -250,7 +245,7 @@ static size_t print_report(fp_reporter_t * reporter, const spx_profiler_event_t 
     }
 
     for (i = limit; i < event->func_table.size; i++) {
-        const spx_profiler_func_table_entry_t * current = &event->func_table.entries[i];
+        const spx_profiler_func_table_entry_t *current = &event->func_table.entries[i];
         size_t j;
         for (j = 0; j < limit; j++) {
             if (entry_cmp_r(&reporter->top_entries[j], &current, reporter) > 0) {
@@ -268,32 +263,19 @@ static size_t print_report(fp_reporter_t * reporter, const spx_profiler_event_t 
      */
     entry_cmp_reporter = reporter;
 
-    qsort(
-        reporter->top_entries,
-        limit,
-        sizeof(*reporter->top_entries),
-        entry_cmp
-    );
+    qsort(reporter->top_entries, limit, sizeof(*reporter->top_entries), entry_cmp);
 
     spx_output_stream_print(reporter->output, "\n*** SPX Report ***\n\nGlobal stats:\n\n");
     size_t line_count = 5;
 
     spx_output_stream_printf(reporter->output, "  %-20s: ", "Called functions");
-    spx_fmt_print_value(
-        reporter->output,
-        SPX_FMT_QUANTITY,
-        event->called
-    );
+    spx_fmt_print_value(reporter->output, SPX_FMT_QUANTITY, event->called);
 
     spx_output_stream_print(reporter->output, "\n");
     line_count++;
 
     spx_output_stream_printf(reporter->output, "  %-20s: ", "Distinct functions");
-    spx_fmt_print_value(
-        reporter->output,
-        SPX_FMT_QUANTITY,
-        event->func_table.size
-    );
+    spx_fmt_print_value(reporter->output, SPX_FMT_QUANTITY, event->func_table.size);
 
     if (event->func_table.size == event->func_table.capacity) {
         spx_output_stream_print(reporter->output, "+");
@@ -308,11 +290,7 @@ static size_t print_report(fp_reporter_t * reporter, const spx_profiler_event_t 
         }
 
         spx_output_stream_printf(reporter->output, "  %-20s: ", spx_metric_info[i].short_name);
-        spx_fmt_print_value(
-            reporter->output,
-            spx_metric_info[i].type,
-            event->max->values[i]
-        );
+        spx_fmt_print_value(reporter->output, spx_metric_info[i].type, event->max->values[i]);
 
         spx_output_stream_print(reporter->output, "\n");
         line_count++;
@@ -321,7 +299,7 @@ static size_t print_report(fp_reporter_t * reporter, const spx_profiler_event_t 
     spx_output_stream_print(reporter->output, "\nFlat profile:\n\n");
     line_count += 3;
 
-    spx_fmt_row_t * fmt_row = spx_fmt_row_create();
+    spx_fmt_row_t *fmt_row = spx_fmt_row_create();
 
     SPX_METRIC_FOREACH(i, {
         if (!event->enabled_metrics[i]) {
@@ -339,17 +317,10 @@ static size_t print_report(fp_reporter_t * reporter, const spx_profiler_event_t 
             continue;
         }
 
-        spx_fmt_row_add_tcell(
-            fmt_row,
-            1,
-            i == reporter->focus && reporter->inc ? "*Inc." : "Inc."
-        );
+        spx_fmt_row_add_tcell(fmt_row, 1, i == reporter->focus && reporter->inc ? "*Inc." : "Inc.");
 
-        spx_fmt_row_add_tcell(
-            fmt_row,
-            1,
-            i == reporter->focus && !reporter->inc ? "*Exc." : "Exc."
-        );
+        spx_fmt_row_add_tcell(fmt_row, 1,
+                              i == reporter->focus && !reporter->inc ? "*Exc." : "Exc.");
     });
 
     spx_fmt_row_add_tcell(fmt_row, 1, "Called");
@@ -362,7 +333,7 @@ static size_t print_report(fp_reporter_t * reporter, const spx_profiler_event_t 
     line_count += 3;
 
     for (i = 0; i < limit; i++) {
-        const spx_profiler_func_table_entry_t * entry = reporter->top_entries[i];
+        const spx_profiler_func_table_entry_t *entry = reporter->top_entries[i];
 
         SPX_METRIC_FOREACH(i, {
             if (!event->enabled_metrics[i]) {
@@ -379,17 +350,15 @@ static size_t print_report(fp_reporter_t * reporter, const spx_profiler_event_t 
                 exc /= event->max->values[i];
             }
 
-            const char * inc_ansi_fmt = NULL;
-            const char * exc_ansi_fmt = NULL;
+            const char *inc_ansi_fmt = NULL;
+            const char *exc_ansi_fmt = NULL;
 
             if (reporter->color) {
-                inc_ansi_fmt = get_value_ansi_fmt(
-                    entry->stats.inc.values[i] / event->max->values[i]
-                );
+                inc_ansi_fmt =
+                    get_value_ansi_fmt(entry->stats.inc.values[i] / event->max->values[i]);
 
-                exc_ansi_fmt = get_value_ansi_fmt(
-                    entry->stats.exc.values[i] / event->max->values[i]
-                );
+                exc_ansi_fmt =
+                    get_value_ansi_fmt(entry->stats.exc.values[i] / event->max->values[i]);
             }
 
             spx_fmt_row_add_ncellf(fmt_row, 1, type, inc, inc_ansi_fmt);
@@ -400,25 +369,15 @@ static size_t print_report(fp_reporter_t * reporter, const spx_profiler_event_t 
 
         char cycle_depth_str[32] = {0};
         if (entry->stats.max_cycle_depth > 0) {
-            snprintf(
-                cycle_depth_str,
-                sizeof(cycle_depth_str),
-                "%zu@",
-                entry->stats.max_cycle_depth
-            );
+            snprintf(cycle_depth_str, sizeof(cycle_depth_str), "%zu@",
+                     entry->stats.max_cycle_depth);
         }
 
         char func_name[256];
 
-        snprintf(
-            func_name,
-            sizeof(func_name),
-            "%s%s%s%s",
-            cycle_depth_str,
-            entry->function.class_name,
-            entry->function.class_name[0] ? "::" : "",
-            entry->function.func_name
-        );
+        snprintf(func_name, sizeof(func_name), "%s%s%s%s", cycle_depth_str,
+                 entry->function.class_name, entry->function.class_name[0] ? "::" : "",
+                 entry->function.func_name);
 
         spx_fmt_row_add_tcell(fmt_row, 0, func_name);
 
@@ -438,27 +397,11 @@ static size_t print_report(fp_reporter_t * reporter, const spx_profiler_event_t 
     return line_count;
 }
 
-static const char * get_value_ansi_fmt(double v)
+static const char *get_value_ansi_fmt(double v)
 {
-    static const char * colors[] = {
-        "102;30",
-        "42;30",
-        "42;33",
-        "42;93",
-        "42;93;1",
-        "43;92;1",
-        "43;92",
-        "43;32",
-        "103;30",
-        "43;30",
-        "43;31",
-        "43;91",
-        "43;91;1",
-        "41;93;1",
-        "41;93",
-        "41;33",
-        "41",
-        "101",
+    static const char *colors[] = {
+        "102;30", "42;30", "42;33", "42;93",   "42;93;1", "43;92;1", "43;92", "43;32", "103;30",
+        "43;30",  "43;31", "43;91", "43;91;1", "41;93;1", "41;93",   "41;33", "41",    "101",
     };
 
     if (v < 0) {

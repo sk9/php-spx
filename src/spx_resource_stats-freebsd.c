@@ -19,13 +19,9 @@
 
 #include "spx_resource_stats.h"
 
-void spx_resource_stats_init(void)
-{
-}
+void spx_resource_stats_init(void) {}
 
-void spx_resource_stats_shutdown(void)
-{
-}
+void spx_resource_stats_shutdown(void) {}
 
 #define TIMESPEC_TO_NS(ts) ((ts).tv_sec * 1000 * 1000 * 1000 + (ts).tv_nsec)
 
@@ -51,10 +47,9 @@ size_t spx_resource_stats_own_rss(void)
     return 0;
 }
 
-void spx_resource_stats_io(size_t * in, size_t * out)
+void spx_resource_stats_io(size_t *in, size_t *out)
 {
     /* FIXME supported ? */
     *in = 0;
     *out = 0;
 }
-

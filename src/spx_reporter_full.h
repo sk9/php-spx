@@ -15,38 +15,25 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #ifndef SPX_REPORTER_FULL_H_DEFINED
 #define SPX_REPORTER_FULL_H_DEFINED
 
 #include "spx_profiler.h"
 
-size_t spx_reporter_full_metadata_list_files(
-    const char * data_dir,
-    void (*callback) (const char *, size_t)
-);
+size_t spx_reporter_full_metadata_list_files(const char *data_dir,
+                                             void (*callback)(const char *, size_t));
 
-char * spx_reporter_full_build_metadata_file_name(
-    const char * data_dir,
-    const char * key,
-    char * file_name,
-    size_t size
-);
+char *spx_reporter_full_build_metadata_file_name(const char *data_dir, const char *key,
+                                                 char *file_name, size_t size);
 
-char * spx_reporter_full_build_file_name(
-    const char * data_dir,
-    const char * key,
-    char * file_name,
-    size_t size
-);
+char *spx_reporter_full_build_file_name(const char *data_dir, const char *key, char *file_name,
+                                        size_t size);
 
-spx_profiler_reporter_t * spx_reporter_full_create(const char * data_dir);
+spx_profiler_reporter_t *spx_reporter_full_create(const char *data_dir);
 
-void spx_reporter_full_set_custom_metadata_str(
-    const spx_profiler_reporter_t * base_reporter,
-    const char * custom_metadata_str
-);
+void spx_reporter_full_set_custom_metadata_str(const spx_profiler_reporter_t *base_reporter,
+                                               const char *custom_metadata_str);
 
-const char * spx_reporter_full_get_key(const spx_profiler_reporter_t * base_reporter);
+const char *spx_reporter_full_get_key(const spx_profiler_reporter_t *base_reporter);
 
 #endif /* SPX_REPORTER_FULL_H_DEFINED */

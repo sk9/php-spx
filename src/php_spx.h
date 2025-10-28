@@ -15,24 +15,24 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #ifdef HAVE_CONFIG_H
-#   include "config.h"
+#include "config.h"
 #endif
 
 #include "main/php.h"
 
 /* linux 2.6+ or OSX */
 #if !defined(linux) && !(defined(__APPLE__) && defined(__MACH__)) && !defined(__FreeBSD__)
-#   error "Only Linux-based OSes, Apple MacOS and FreeBSD are supported"
+#error "Only Linux-based OSes, Apple MacOS and FreeBSD are supported"
 #endif
 
-#if (defined(_MSC_VER) && !(defined(_M_X64) || defined(_M_ARM64))) || (!defined(_MSC_VER) && !(defined(__x86_64__) || defined(__aarch64__)))
-#   error "Only x86-64 and ARM64 architectures are supported"
+#if (defined(_MSC_VER) && !(defined(_M_X64) || defined(_M_ARM64))) ||                              \
+    (!defined(_MSC_VER) && !(defined(__x86_64__) || defined(__aarch64__)))
+#error "Only x86-64 and ARM64 architectures are supported"
 #endif
 
 #if ZEND_MODULE_API_NO < 20100525 || ZEND_MODULE_API_NO > 20250925
-#   error "Only the following PHP versions are supported: 5.4 to 8.5"
+#error "Only the following PHP versions are supported: 5.4 to 8.5"
 #endif
 
 #define PHP_SPX_EXTNAME "SPX"

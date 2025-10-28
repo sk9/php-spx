@@ -15,43 +15,39 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #ifdef ZTS
-#   include <pthread.h>
+#include <pthread.h>
 #endif
 
 #include <arpa/inet.h>
 
-#include "spx_utils.h"
 #include "spx_php.h"
+#include "spx_utils.h"
 
-int spx_utils_ip_match(const char * ip_address_str, const char * target)
+int spx_utils_ip_match(const char *ip_address_str, const char *target)
 {
-    if (
-        strcmp(target, "*") == 0 ||
-        strcmp(target, ip_address_str) == 0
-    ) {
+    if (strcmp(target, "*") == 0 || strcmp(target, ip_address_str) == 0) {
         return 1;
     }
 
     // subnet handling
 
-    const char * slash_ptr = strchr(target, '/');
+    const char *slash_ptr = strchr(target, '/');
     if (slash_ptr == NULL) {
         return 0;
     }
 
     const size_t slash_pos = slash_ptr - target;
-    if (! (7 <= slash_pos && slash_pos <= 15)) {
+    if (!(7 <= slash_pos && slash_pos <= 15)) {
         return 0;
     }
 
     const size_t target_suffix_len = strlen(slash_ptr);
-    if (! (2 <= target_suffix_len && target_suffix_len <= 3)) {
+    if (!(2 <= target_suffix_len && target_suffix_len <= 3)) {
         return 0;
     }
 
@@ -68,7 +64,7 @@ int spx_utils_ip_match(const char * ip_address_str, const char * target)
     snprintf(target_mask_str, sizeof target_mask_str, "%s", slash_ptr + 1);
     const long target_mask_bits = strtol(target_mask_str, NULL, 10);
 
-    if (! (1 <= target_mask_bits && target_mask_bits <= 31)) {
+    if (!(1 <= target_mask_bits && target_mask_bits <= 31)) {
         return 0;
     }
 
@@ -86,27 +82,17 @@ int spx_utils_ip_match(const char * ip_address_str, const char * target)
     return 0;
 }
 
-char * spx_utils_resolve_confined_file_absolute_path(
-    const char * root_dir,
-    const char * relative_path,
-    const char * suffix,
-    char * dst,
-    size_t size
-) {
+char *spx_utils_resolve_confined_file_absolute_path(const char *root_dir, const char *relative_path,
+                                                    const char *suffix, char *dst, size_t size)
+{
     if (size < PATH_MAX) {
         spx_utils_die("size < PATH_MAX");
     }
 
     char absolute_file_path[PATH_MAX];
 
-    snprintf(
-        absolute_file_path,
-        sizeof(absolute_file_path),
-        "%s%s%s",
-        root_dir,
-        relative_path,
-        suffix == NULL ? "" : suffix
-    );
+    snprintf(absolute_file_path, sizeof(absolute_file_path), "%s%s%s", root_dir, relative_path,
+             suffix == NULL ? "" : suffix);
 
     if (realpath(absolute_file_path, dst) == NULL) {
         return NULL;
@@ -118,21 +104,16 @@ char * spx_utils_resolve_confined_file_absolute_path(
     }
 
     char expected_path_prefix[PATH_MAX + 1];
-    snprintf(
-        expected_path_prefix,
-        sizeof(expected_path_prefix),
-        "%s/",
-        root_dir_real_path
-    );
+    snprintf(expected_path_prefix, sizeof(expected_path_prefix), "%s/", root_dir_real_path);
 
-    if (! spx_utils_str_starts_with(dst, expected_path_prefix)) {
+    if (!spx_utils_str_starts_with(dst, expected_path_prefix)) {
         return NULL;
     }
 
     return dst;
 }
 
-char * spx_utils_json_escape(char * dst, const char * src, size_t limit)
+char *spx_utils_json_escape(char *dst, const char *src, size_t limit)
 {
     size_t i = 0;
     while (*src) {
@@ -143,37 +124,37 @@ char * spx_utils_json_escape(char * dst, const char * src, size_t limit)
         char escaped_char = 0;
 
         switch (*src) {
-            case '\\':
-            case '"':
-            case '/':
-                escaped_char = *src;
+        case '\\':
+        case '"':
+        case '/':
+            escaped_char = *src;
 
-                break;
+            break;
 
-            case '\b':
-                escaped_char = 'b';
+        case '\b':
+            escaped_char = 'b';
 
-                break;
+            break;
 
-            case '\f':
-                escaped_char = 'f';
+        case '\f':
+            escaped_char = 'f';
 
-                break;
+            break;
 
-            case '\n':
-                escaped_char = 'n';
+        case '\n':
+            escaped_char = 'n';
 
-                break;
+            break;
 
-            case '\r':
-                escaped_char = 'r';
+        case '\r':
+            escaped_char = 'r';
 
-                break;
+            break;
 
-            case '\t':
-                escaped_char = 't';
+        case '\t':
+            escaped_char = 't';
 
-                break;
+            break;
         }
 
         if (escaped_char != 0) {
@@ -206,12 +187,12 @@ limit_reached:
     return NULL;
 }
 
-int spx_utils_str_starts_with(const char * str, const char * prefix)
+int spx_utils_str_starts_with(const char *str, const char *prefix)
 {
     return 0 == strncmp(str, prefix, strlen(prefix));
 }
 
-int spx_utils_str_ends_with(const char * str, const char * suffix)
+int spx_utils_str_ends_with(const char *str, const char *suffix)
 {
     const size_t str_len = strlen(str);
     const size_t suffix_len = strlen(suffix);
@@ -227,7 +208,7 @@ int spx_utils_str_ends_with(const char * str, const char * suffix)
     return 0;
 }
 
-void spx_utils_die_(const char * msg, const char * file, size_t line)
+void spx_utils_die_(const char *msg, const char *file, size_t line)
 {
     fprintf(stderr, "SPX Fatal error at %s:%zu - %s\n", file, line, msg);
 

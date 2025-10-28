@@ -15,15 +15,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #if defined(linux)
-#   include "spx_resource_stats-linux.c"
+#include "spx_resource_stats-linux.c"
 #elif defined(__APPLE__) && defined(__MACH__)
-#   include "spx_resource_stats-macos.c"
+#include "spx_resource_stats-macos.c"
 #elif defined(__FreeBSD__)
-#   include "spx_resource_stats-freebsd.c"
+#include "spx_resource_stats-freebsd.c"
 #elif defined(_WIN32)
-#   include "spx_resource_stats-win32.c"
+#include "spx_resource_stats-win32.c"
 #else
-#   error "Your platform is not supported. Please open an issue."
+#error "Your platform is not supported. Please open an issue."
 #endif

@@ -15,7 +15,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #ifndef SPX_PHP_H_DEFINED
 #define SPX_PHP_H_DEFINED
 
@@ -23,11 +22,10 @@
 
 #include "main/php.h"
 
-
 /*
-	TSRMLS_* macros, which were deprecated since PHP7, are removed in PHP8.
-	More details here:
-	https://github.com/php/php-src/blob/PHP-8.0/UPGRADING.INTERNALS#L50
+        TSRMLS_* macros, which were deprecated since PHP7, are removed in PHP8.
+        More details here:
+        https://github.com/php/php-src/blob/PHP-8.0/UPGRADING.INTERNALS#L50
 */
 #if ZEND_MODULE_API_NO >= 20200930
 #define TSRMLS_CC
@@ -40,19 +38,19 @@
 typedef struct {
     uint64_t hash_code;
 
-    const char * func_name;
-    const char * class_name;
+    const char *func_name;
+    const char *class_name;
 } spx_php_function_t;
 
 int spx_php_is_cli_sapi(void);
 int spx_php_are_ansi_sequences_supported(void);
 
-void spx_php_current_function(spx_php_function_t * function);
+void spx_php_current_function(spx_php_function_t *function);
 
-const char * spx_php_ini_get_string(const char * name);
-double spx_php_ini_get_double(const char * name);
-const char * spx_php_global_array_get(const char * name, const char * key);
-char * spx_php_build_command_line(void);
+const char *spx_php_ini_get_string(const char *name);
+double spx_php_ini_get_double(const char *name);
+const char *spx_php_global_array_get(const char *name, const char *key);
+char *spx_php_build_command_line(void);
 
 size_t spx_php_zend_memory_usage(void);
 size_t spx_php_zend_memory_alloc_count(void);
@@ -81,14 +79,14 @@ void spx_php_execution_disable(void);
 void spx_php_execution_hook(void (*before)(void), void (*after)(void), int internal);
 void spx_php_execution_finalize(void);
 
-void spx_php_output_add_header_line(const char * header_line);
-void spx_php_output_add_header_linef(const char * fmt, ...);
+void spx_php_output_add_header_line(const char *header_line);
+void spx_php_output_add_header_linef(const char *fmt, ...);
 void spx_php_output_send_headers(void);
 
-size_t spx_php_output_direct_write(const void * ptr, size_t len);
-size_t spx_php_output_direct_print(const char * str);
-int spx_php_output_direct_printf(const char * fmt, ...);
+size_t spx_php_output_direct_write(const void *ptr, size_t len);
+size_t spx_php_output_direct_print(const char *str);
+int spx_php_output_direct_printf(const char *fmt, ...);
 
-void spx_php_log_notice(const char * fmt, ...);
+void spx_php_log_notice(const char *fmt, ...);
 
 #endif /* SPX_PHP_H_DEFINED */
