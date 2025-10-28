@@ -15,152 +15,115 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #include <stdio.h>
 
-#if ! defined(ZTS) && ! defined(_WIN32)
-#   define USE_SIGNAL
+#if !defined(ZTS) && !defined(_WIN32)
+#define USE_SIGNAL
 #endif
 
 #ifdef USE_SIGNAL
-#   include <signal.h>
+#include <signal.h>
 #endif
 
-#include "php_spx.h"
 #include "ext/standard/info.h"
+#include "php_spx.h"
 
-#include "spx_thread.h"
+#include "spx_call_stack.h"
 #include "spx_config.h"
-#include "spx_php.h"
-#include "spx_utils.h"
+#include "spx_limits.h"
 #include "spx_metric.h"
-#include "spx_resource_stats.h"
-#include "spx_profiler_tracer.h"
+#include "spx_php.h"
 #include "spx_profiler_sampler.h"
+#include "spx_profiler_tracer.h"
 #include "spx_reporter_fp.h"
 #include "spx_reporter_full.h"
 #include "spx_reporter_trace.h"
+#include "spx_resource_stats.h"
+#include "spx_signal_handler.h"
+#include "spx_thread.h"
+#include "spx_utils.h"
 
 typedef struct {
-    void (*init) (void);
-    void (*shutdown) (void);
+    void (*init)(void);
+    void (*shutdown)(void);
 } execution_handler_t;
-
-#define STACK_CAPACITY 2048
 
 static SPX_THREAD_TLS struct {
     int cli_sapi;
     spx_config_t config;
 
-    execution_handler_t * execution_handler;
+    execution_handler_t *execution_handler;
 
     struct {
+        /* Signal handling (CLI only) */
 #ifdef USE_SIGNAL
-        struct {
-            int handler_set;
-            struct {
-                struct sigaction sigint;
-                struct sigaction sigterm;
-            } prev_handler;
-
-            volatile sig_atomic_t handler_called;
-            volatile sig_atomic_t probing;
-            volatile sig_atomic_t stop;
-            int signo;
-        } sig_handling;
+        spx_signal_handler_t *sig_handler;
 #endif
 
+        /* Call stack tracking */
+        spx_call_stack_t *call_stack;
+
         char full_report_key[512];
-        spx_profiler_reporter_t * reporter;
-        spx_profiler_t * profiler;
-        spx_php_function_t stack[STACK_CAPACITY];
-        size_t depth;
+        spx_profiler_reporter_t *reporter;
+        spx_profiler_t *profiler;
         size_t span_depth;
     } profiling_handler;
 } context;
 
 ZEND_BEGIN_MODULE_GLOBALS(spx)
-    zend_bool debug;
-    const char * data_dir;
-    zend_bool http_enabled;
-    const char * http_key;
-    const char * http_ip_var;
-    const char * http_trusted_proxies;
-    const char * http_ip_whitelist;
-    const char * http_ui_assets_dir;
-    const char * http_profiling_enabled;
-    const char * http_profiling_auto_start;
-    const char * http_profiling_builtins;
-    const char * http_profiling_sampling_period;
-    const char * http_profiling_depth;
-    const char * http_profiling_metrics;
+zend_bool debug;
+const char *data_dir;
+zend_bool http_enabled;
+const char *http_key;
+const char *http_ip_var;
+const char *http_trusted_proxies;
+const char *http_ip_whitelist;
+const char *http_ui_assets_dir;
+const char *http_profiling_enabled;
+const char *http_profiling_auto_start;
+const char *http_profiling_builtins;
+const char *http_profiling_sampling_period;
+const char *http_profiling_depth;
+const char *http_profiling_metrics;
 ZEND_END_MODULE_GLOBALS(spx)
 
 ZEND_DECLARE_MODULE_GLOBALS(spx)
 
 #ifdef ZTS
-#   define SPX_G(v) TSRMG(spx_globals_id, zend_spx_globals *, v)
+#define SPX_G(v) TSRMG(spx_globals_id, zend_spx_globals *, v)
 #else
-#   define SPX_G(v) (spx_globals.v)
+#define SPX_G(v) (spx_globals.v)
 #endif
 
 PHP_INI_BEGIN()
-    STD_PHP_INI_ENTRY(
-        "spx.debug", "0", PHP_INI_SYSTEM,
-        OnUpdateBool, debug, zend_spx_globals, spx_globals
-    )
-    STD_PHP_INI_ENTRY(
-        "spx.data_dir", "/tmp/spx", PHP_INI_SYSTEM,
-        OnUpdateString, data_dir, zend_spx_globals, spx_globals
-    )
-    STD_PHP_INI_ENTRY(
-        "spx.http_enabled", "0", PHP_INI_SYSTEM,
-        OnUpdateBool, http_enabled, zend_spx_globals, spx_globals
-    )
-    STD_PHP_INI_ENTRY(
-        "spx.http_key", "", PHP_INI_SYSTEM,
-        OnUpdateString, http_key, zend_spx_globals, spx_globals
-    )
-    STD_PHP_INI_ENTRY(
-        "spx.http_ip_var", "REMOTE_ADDR", PHP_INI_SYSTEM,
-        OnUpdateString, http_ip_var, zend_spx_globals, spx_globals
-    )
-    STD_PHP_INI_ENTRY(
-        "spx.http_trusted_proxies", "127.0.0.1", PHP_INI_SYSTEM,
-        OnUpdateString, http_trusted_proxies, zend_spx_globals, spx_globals
-    )
-    STD_PHP_INI_ENTRY(
-        "spx.http_ip_whitelist", "", PHP_INI_SYSTEM,
-        OnUpdateString, http_ip_whitelist, zend_spx_globals, spx_globals
-    )
-    STD_PHP_INI_ENTRY(
-        "spx.http_ui_assets_dir", SPX_HTTP_UI_ASSETS_DIR, PHP_INI_SYSTEM,
-        OnUpdateString, http_ui_assets_dir, zend_spx_globals, spx_globals
-    )
-    STD_PHP_INI_ENTRY(
-        "spx.http_profiling_enabled", NULL, PHP_INI_SYSTEM,
-        OnUpdateString, http_profiling_enabled, zend_spx_globals, spx_globals
-    )
-    STD_PHP_INI_ENTRY(
-        "spx.http_profiling_auto_start", NULL, PHP_INI_SYSTEM,
-        OnUpdateString, http_profiling_auto_start, zend_spx_globals, spx_globals
-    )
-    STD_PHP_INI_ENTRY(
-        "spx.http_profiling_builtins", NULL, PHP_INI_SYSTEM,
-        OnUpdateString, http_profiling_builtins, zend_spx_globals, spx_globals
-    )
-    STD_PHP_INI_ENTRY(
-        "spx.http_profiling_sampling_period", NULL, PHP_INI_SYSTEM,
-        OnUpdateString, http_profiling_sampling_period, zend_spx_globals, spx_globals
-    )
-    STD_PHP_INI_ENTRY(
-        "spx.http_profiling_depth", NULL, PHP_INI_SYSTEM,
-        OnUpdateString, http_profiling_depth, zend_spx_globals, spx_globals
-    )
-    STD_PHP_INI_ENTRY(
-        "spx.http_profiling_metrics", NULL, PHP_INI_SYSTEM,
-        OnUpdateString, http_profiling_metrics, zend_spx_globals, spx_globals
-    )
+STD_PHP_INI_ENTRY("spx.debug", "0", PHP_INI_SYSTEM, OnUpdateBool, debug, zend_spx_globals,
+                  spx_globals)
+STD_PHP_INI_ENTRY("spx.data_dir", "/tmp/spx", PHP_INI_SYSTEM, OnUpdateString, data_dir,
+                  zend_spx_globals, spx_globals)
+STD_PHP_INI_ENTRY("spx.http_enabled", "0", PHP_INI_SYSTEM, OnUpdateBool, http_enabled,
+                  zend_spx_globals, spx_globals)
+STD_PHP_INI_ENTRY("spx.http_key", "", PHP_INI_SYSTEM, OnUpdateString, http_key, zend_spx_globals,
+                  spx_globals)
+STD_PHP_INI_ENTRY("spx.http_ip_var", "REMOTE_ADDR", PHP_INI_SYSTEM, OnUpdateString, http_ip_var,
+                  zend_spx_globals, spx_globals)
+STD_PHP_INI_ENTRY("spx.http_trusted_proxies", "127.0.0.1", PHP_INI_SYSTEM, OnUpdateString,
+                  http_trusted_proxies, zend_spx_globals, spx_globals)
+STD_PHP_INI_ENTRY("spx.http_ip_whitelist", "", PHP_INI_SYSTEM, OnUpdateString, http_ip_whitelist,
+                  zend_spx_globals, spx_globals)
+STD_PHP_INI_ENTRY("spx.http_ui_assets_dir", SPX_HTTP_UI_ASSETS_DIR, PHP_INI_SYSTEM, OnUpdateString,
+                  http_ui_assets_dir, zend_spx_globals, spx_globals)
+STD_PHP_INI_ENTRY("spx.http_profiling_enabled", NULL, PHP_INI_SYSTEM, OnUpdateString,
+                  http_profiling_enabled, zend_spx_globals, spx_globals)
+STD_PHP_INI_ENTRY("spx.http_profiling_auto_start", NULL, PHP_INI_SYSTEM, OnUpdateString,
+                  http_profiling_auto_start, zend_spx_globals, spx_globals)
+STD_PHP_INI_ENTRY("spx.http_profiling_builtins", NULL, PHP_INI_SYSTEM, OnUpdateString,
+                  http_profiling_builtins, zend_spx_globals, spx_globals)
+STD_PHP_INI_ENTRY("spx.http_profiling_sampling_period", NULL, PHP_INI_SYSTEM, OnUpdateString,
+                  http_profiling_sampling_period, zend_spx_globals, spx_globals)
+STD_PHP_INI_ENTRY("spx.http_profiling_depth", NULL, PHP_INI_SYSTEM, OnUpdateString,
+                  http_profiling_depth, zend_spx_globals, spx_globals)
+STD_PHP_INI_ENTRY("spx.http_profiling_metrics", NULL, PHP_INI_SYSTEM, OnUpdateString,
+                  http_profiling_metrics, zend_spx_globals, spx_globals)
 PHP_INI_END()
 
 static PHP_MINIT_FUNCTION(spx);
@@ -191,21 +154,15 @@ static void profiling_handler_sig_unset_handler(void);
 
 static void http_ui_handler_init(void);
 static void http_ui_handler_shutdown(void);
-static int  http_ui_handler_data(const char * data_dir, const char *relative_path);
-static void http_ui_handler_list_metadata_files_callback(const char * file_name, size_t count);
-static int  http_ui_handler_output_file(const char * file_name);
+static int http_ui_handler_data(const char *data_dir, const char *relative_path);
+static void http_ui_handler_list_metadata_files_callback(const char *file_name, size_t count);
+static int http_ui_handler_output_file(const char *file_name);
 
-static void read_stream_content(FILE * stream, size_t (*callback) (const void * ptr, size_t len));
+static void read_stream_content(FILE *stream, size_t (*callback)(const void *ptr, size_t len));
 
-static execution_handler_t profiling_handler = {
-    profiling_handler_init,
-    profiling_handler_shutdown
-};
+static execution_handler_t profiling_handler = {profiling_handler_init, profiling_handler_shutdown};
 
-static execution_handler_t http_ui_handler = {
-    http_ui_handler_init,
-    http_ui_handler_shutdown
-};
+static execution_handler_t http_ui_handler = {http_ui_handler_init, http_ui_handler_shutdown};
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_spx_profiler_start, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -215,35 +172,32 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_spx_profiler_full_report_set_custom_metadata_str, 0, 0, 1)
 #if ZEND_MODULE_API_NO >= 20151012
-    ZEND_ARG_TYPE_INFO(0, customMetadataStr, IS_STRING, 0)
+ZEND_ARG_TYPE_INFO(0, customMetadataStr, IS_STRING, 0)
 #else
-    ZEND_ARG_INFO(0, customMetadataStr)
+ZEND_ARG_INFO(0, customMetadataStr)
 #endif
 ZEND_END_ARG_INFO()
 
 static zend_function_entry spx_functions[] = {
     PHP_FE(spx_profiler_start, arginfo_spx_profiler_start)
-    PHP_FE(spx_profiler_stop, arginfo_spx_profiler_stop)
-    PHP_FE(spx_profiler_full_report_set_custom_metadata_str, arginfo_spx_profiler_full_report_set_custom_metadata_str)
-    PHP_FE_END
-};
+        PHP_FE(spx_profiler_stop, arginfo_spx_profiler_stop)
+            PHP_FE(spx_profiler_full_report_set_custom_metadata_str,
+                   arginfo_spx_profiler_full_report_set_custom_metadata_str) PHP_FE_END};
 
-zend_module_entry spx_module_entry = {
-    STANDARD_MODULE_HEADER,
-    PHP_SPX_EXTNAME,
-    spx_functions,
-    PHP_MINIT(spx),
-    PHP_MSHUTDOWN(spx),
-    PHP_RINIT(spx),
-    PHP_RSHUTDOWN(spx),
-    PHP_MINFO(spx),
-    PHP_SPX_VERSION,
-    PHP_MODULE_GLOBALS(spx),
-    NULL,
-    NULL,
-    NULL,
-    STANDARD_MODULE_PROPERTIES_EX
-};
+zend_module_entry spx_module_entry = {STANDARD_MODULE_HEADER,
+                                      PHP_SPX_EXTNAME,
+                                      spx_functions,
+                                      PHP_MINIT(spx),
+                                      PHP_MSHUTDOWN(spx),
+                                      PHP_RINIT(spx),
+                                      PHP_RSHUTDOWN(spx),
+                                      PHP_MINFO(spx),
+                                      PHP_SPX_VERSION,
+                                      PHP_MODULE_GLOBALS(spx),
+                                      NULL,
+                                      NULL,
+                                      NULL,
+                                      STANDARD_MODULE_PROPERTIES_EX};
 
 #ifdef COMPILE_DL_SPX
 ZEND_GET_MODULE(spx)
@@ -283,31 +237,21 @@ static PHP_RINIT_FUNCTION(spx)
     if (context.cli_sapi) {
         spx_config_get(&context.config, context.cli_sapi, SPX_CONFIG_SOURCE_ENV, -1);
     } else {
-        spx_config_get(
-            &context.config,
-            context.cli_sapi,
-            SPX_CONFIG_SOURCE_HTTP_COOKIE,
-            SPX_CONFIG_SOURCE_HTTP_HEADER,
-            SPX_CONFIG_SOURCE_HTTP_QUERY_STRING,
-            -1
-        );
+        spx_config_get(&context.config, context.cli_sapi, SPX_CONFIG_SOURCE_HTTP_COOKIE,
+                       SPX_CONFIG_SOURCE_HTTP_HEADER, SPX_CONFIG_SOURCE_HTTP_QUERY_STRING, -1);
 
         /*
-            The access (multi-factor authentication check) is required as long as the client request the
-            access to the web UI or to profile the current script.
+            The access (multi-factor authentication check) is required as long as the client request
+           the access to the web UI or to profile the current script.
         */
         const int access_required = context.config.ui_uri || context.config.enabled;
 
         if (!access_required || !check_access()) {
             /*
-                If the access is not required or not granted, we have to read the config again, from the INI source only.
+                If the access is not required or not granted, we have to read the config again, from
+               the INI source only.
             */
-            spx_config_get(
-                &context.config,
-                context.cli_sapi,
-                SPX_CONFIG_SOURCE_INI,
-                -1
-            );
+            spx_config_get(&context.config, context.cli_sapi, SPX_CONFIG_SOURCE_INI, -1);
         }
     }
 
@@ -319,10 +263,8 @@ static PHP_RINIT_FUNCTION(spx)
         }
 
         if (!context.cli_sapi && SPX_G(debug)) {
-            spx_php_output_add_header_linef(
-                "SPX-Debug-Profiling-Triggered: %d",
-                context.config.enabled
-            );
+            spx_php_output_add_header_linef("SPX-Debug-Profiling-Triggered: %d",
+                                            context.config.enabled);
         }
     }
 
@@ -394,12 +336,15 @@ static PHP_FUNCTION(spx_profiler_start)
         return;
     }
 
+    /* Replay the current call stack to the profiler */
+    size_t depth = spx_call_stack_depth(context.profiling_handler.call_stack);
     size_t i;
-    for (i = 0; i < context.profiling_handler.depth; i++) {
-        context.profiling_handler.profiler->call_start(
-            context.profiling_handler.profiler,
-            &context.profiling_handler.stack[i]
-        );
+    for (i = 0; i < depth; i++) {
+        spx_php_function_t function;
+        if (spx_call_stack_get_frame_at(context.profiling_handler.call_stack, i, &function) == 0) {
+            context.profiling_handler.profiler->call_start(context.profiling_handler.profiler,
+                                                           &function);
+        }
     }
 }
 
@@ -446,7 +391,7 @@ static PHP_FUNCTION(spx_profiler_stop)
 
 static PHP_FUNCTION(spx_profiler_full_report_set_custom_metadata_str)
 {
-    char * custom_metadata_str;
+    char *custom_metadata_str;
 #if ZEND_MODULE_API_NO >= 20151012
     size_t custom_metadata_str_len;
 #else
@@ -455,41 +400,31 @@ static PHP_FUNCTION(spx_profiler_full_report_set_custom_metadata_str)
 
 #if ZEND_MODULE_API_NO >= 20170718
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_STRING(custom_metadata_str, custom_metadata_str_len)
+    Z_PARAM_STRING(custom_metadata_str, custom_metadata_str_len)
     ZEND_PARSE_PARAMETERS_END();
 #else
-    if (
-        zend_parse_parameters(
-            ZEND_NUM_ARGS() TSRMLS_CC,
-            "s",
-            &custom_metadata_str,
-            &custom_metadata_str_len
-        ) == FAILURE
-    ) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &custom_metadata_str,
+                              &custom_metadata_str_len) == FAILURE) {
         return;
     }
 #endif
 
     if (context.config.report != SPX_CONFIG_REPORT_FULL) {
         spx_php_log_notice(
-            "spx_profiler_full_report_set_custom_metadata_str(): `full` report required"
-        );
+            "spx_profiler_full_report_set_custom_metadata_str(): `full` report required");
 
         return;
     }
 
     if (custom_metadata_str_len > 4 * 1024) {
-        spx_php_log_notice(
-            "spx_profiler_full_report_set_custom_metadata_str(): too large $customMetadataStr string, it must not exceed 4KB"
-        );
+        spx_php_log_notice("spx_profiler_full_report_set_custom_metadata_str(): too large "
+                           "$customMetadataStr string, it must not exceed 4KB");
 
         return;
     }
 
-    spx_reporter_full_set_custom_metadata_str(
-        context.profiling_handler.reporter,
-        custom_metadata_str
-    );
+    spx_reporter_full_set_custom_metadata_str(context.profiling_handler.reporter,
+                                              custom_metadata_str);
 }
 
 static int check_access(void)
@@ -522,7 +457,7 @@ static int check_access(void)
             return 0;
         }
 
-        const char * proxy_ip_str = spx_php_global_array_get("_SERVER", "REMOTE_ADDR");
+        const char *proxy_ip_str = spx_php_global_array_get("_SERVER", "REMOTE_ADDR");
         int found = 0;
 
         SPX_UTILS_TOKENIZE_STRING(SPX_G(http_trusted_proxies), ',', trusted_proxy_ip_str, 64, {
@@ -539,18 +474,15 @@ static int check_access(void)
         }
     }
 
-    const char * ip_str = spx_php_global_array_get("_SERVER", SPX_G(http_ip_var));
+    const char *ip_str = spx_php_global_array_get("_SERVER", SPX_G(http_ip_var));
     if (!ip_str || ip_str[0] == 0) {
         /* empty client ip -> not granted */
-        spx_php_log_notice(
-            "access not granted: $_SERVER[\"%s\"] is empty",
-            SPX_G(http_ip_var)
-        );
+        spx_php_log_notice("access not granted: $_SERVER[\"%s\"] is empty", SPX_G(http_ip_var));
 
         return 0;
     }
 
-    const char * authorized_ips_str = SPX_G(http_ip_whitelist);
+    const char *authorized_ips_str = SPX_G(http_ip_whitelist);
 
     if (!authorized_ips_str || authorized_ips_str[0] == 0) {
         /* empty ip white list -> not granted */
@@ -566,12 +498,9 @@ static int check_access(void)
         }
     });
 
-    if (! ip_authorized) {
+    if (!ip_authorized) {
         /* ip not in whitelist -> not granted */
-        spx_php_log_notice(
-            "access not granted: \"%s\" IP is not in white list",
-            ip_str
-        );
+        spx_php_log_notice("access not granted: \"%s\" IP is not in white list", ip_str);
 
         return 0;
     }
@@ -592,10 +521,8 @@ static int check_access(void)
 
     if (0 != strcmp(SPX_G(http_key), context.config.key)) {
         /* server / client key mismatch -> not granted */
-        spx_php_log_notice(
-            "access not granted: server & client (\"%s\") key mismatch",
-            context.config.key
-        );
+        spx_php_log_notice("access not granted: server & client (\"%s\") key mismatch",
+                           context.config.key);
 
         return 0;
     }
@@ -607,19 +534,21 @@ static int check_access(void)
 static void profiling_handler_init(void)
 {
 #ifdef USE_SIGNAL
-    context.profiling_handler.sig_handling.handler_set = 0;
-    context.profiling_handler.sig_handling.probing = 0;
-    context.profiling_handler.sig_handling.stop = 0;
-    context.profiling_handler.sig_handling.handler_called = 0;
-    context.profiling_handler.sig_handling.signo = -1;
+    context.profiling_handler.sig_handler = NULL;
 #endif
+
+    /* Initialize call stack with configurable capacity */
+    context.profiling_handler.call_stack = spx_call_stack_create(spx_limits_get_max_stack_depth());
+    if (!context.profiling_handler.call_stack) {
+        spx_php_log_notice("profiling_handler_init(): failed to create call stack");
+        return;
+    }
 
     profiling_handler_ex_set_context();
 
     context.profiling_handler.full_report_key[0] = 0;
     context.profiling_handler.reporter = NULL;
     context.profiling_handler.profiler = NULL;
-    context.profiling_handler.depth = 0;
     context.profiling_handler.span_depth = 0;
 
     if (context.config.auto_start) {
@@ -631,8 +560,13 @@ static void profiling_handler_shutdown(void)
 {
     profiling_handler_stop();
     profiling_handler_ex_unset_context();
-}
 
+    /* Cleanup call stack */
+    if (context.profiling_handler.call_stack) {
+        spx_call_stack_destroy(context.profiling_handler.call_stack);
+        context.profiling_handler.call_stack = NULL;
+    }
+}
 
 static void profiling_handler_start(void)
 {
@@ -645,60 +579,46 @@ static void profiling_handler_start(void)
     context.profiling_handler.full_report_key[0] = 0;
 
     switch (context.config.report) {
-        default:
-        case SPX_CONFIG_REPORT_FULL:
-            context.profiling_handler.reporter = spx_reporter_full_create(SPX_G(data_dir));
-            if (context.profiling_handler.reporter) {
-                snprintf(
-                    context.profiling_handler.full_report_key,
-                    sizeof(context.profiling_handler.full_report_key),
-                    "%s",
-                    spx_reporter_full_get_key(context.profiling_handler.reporter)
-                );
-            }
+    default:
+    case SPX_CONFIG_REPORT_FULL:
+        context.profiling_handler.reporter = spx_reporter_full_create(SPX_G(data_dir));
+        if (context.profiling_handler.reporter) {
+            snprintf(context.profiling_handler.full_report_key,
+                     sizeof(context.profiling_handler.full_report_key), "%s",
+                     spx_reporter_full_get_key(context.profiling_handler.reporter));
+        }
 
-            break;
+        break;
 
-        case SPX_CONFIG_REPORT_FLAT_PROFILE:
-            context.profiling_handler.reporter = spx_reporter_fp_create(
-                context.config.fp_focus,
-                context.config.fp_inc,
-                context.config.fp_rel,
-                context.config.fp_limit,
-                context.config.fp_live,
-                context.config.fp_color
-            );
+    case SPX_CONFIG_REPORT_FLAT_PROFILE:
+        context.profiling_handler.reporter = spx_reporter_fp_create(
+            context.config.fp_focus, context.config.fp_inc, context.config.fp_rel,
+            context.config.fp_limit, context.config.fp_live, context.config.fp_color);
 
-            break;
+        break;
 
-        case SPX_CONFIG_REPORT_TRACE:
-            context.profiling_handler.reporter = spx_reporter_trace_create(
-                context.config.trace_file,
-                context.config.trace_safe
-            );
+    case SPX_CONFIG_REPORT_TRACE:
+        context.profiling_handler.reporter =
+            spx_reporter_trace_create(context.config.trace_file, context.config.trace_safe);
 
-            break;
+        break;
     }
 
     if (!context.profiling_handler.reporter) {
         goto error;
     }
 
-    context.profiling_handler.profiler = spx_profiler_tracer_create(
-        context.config.max_depth,
-        context.config.enabled_metrics,
-        context.profiling_handler.reporter
-    );
+    context.profiling_handler.profiler =
+        spx_profiler_tracer_create(context.config.max_depth, context.config.enabled_metrics,
+                                   context.profiling_handler.reporter);
 
     if (!context.profiling_handler.profiler) {
         goto error;
     }
 
     if (context.config.sampling_period > 0) {
-        spx_profiler_t * sampling_profiler = spx_profiler_sampler_create(
-            context.profiling_handler.profiler,
-            context.config.sampling_period
-        );
+        spx_profiler_t *sampling_profiler = spx_profiler_sampler_create(
+            context.profiling_handler.profiler, context.config.sampling_period);
 
         if (!sampling_profiler) {
             goto error;
@@ -737,25 +657,29 @@ static void profiling_handler_ex_set_context(void)
 
     spx_php_execution_init();
 
-    spx_php_execution_hook(
-        profiling_handler_ex_hook_before,
-        profiling_handler_ex_hook_after,
-        0
-    );
+    spx_php_execution_hook(profiling_handler_ex_hook_before, profiling_handler_ex_hook_after, 0);
 
     if (context.config.builtins) {
-        spx_php_execution_hook(
-            profiling_handler_ex_hook_before,
-            profiling_handler_ex_hook_after,
-            1
-        );
+        spx_php_execution_hook(profiling_handler_ex_hook_before, profiling_handler_ex_hook_after,
+                               1);
     }
 
     spx_resource_stats_init();
 
 #ifdef USE_SIGNAL
     if (context.cli_sapi && context.config.auto_start) {
-        profiling_handler_sig_set_handler();
+        /* Create and install signal handler */
+        context.profiling_handler.sig_handler = spx_signal_handler_create();
+        if (context.profiling_handler.sig_handler) {
+            spx_signal_handler_set_terminate_callback(context.profiling_handler.sig_handler,
+                                                      profiling_handler_sig_terminate);
+            if (spx_signal_handler_install(context.profiling_handler.sig_handler) != 0) {
+                spx_php_log_notice(
+                    "profiling_handler_ex_set_context(): failed to install signal handler");
+                spx_signal_handler_destroy(context.profiling_handler.sig_handler);
+                context.profiling_handler.sig_handler = NULL;
+            }
+        }
     }
 #endif
 }
@@ -763,8 +687,11 @@ static void profiling_handler_ex_set_context(void)
 static void profiling_handler_ex_unset_context(void)
 {
 #ifdef USE_SIGNAL
-    if (context.cli_sapi && context.config.auto_start) {
-        profiling_handler_sig_unset_handler();
+    if (context.cli_sapi && context.config.auto_start && context.profiling_handler.sig_handler) {
+        /* Uninstall and destroy signal handler */
+        spx_signal_handler_uninstall(context.profiling_handler.sig_handler);
+        spx_signal_handler_destroy(context.profiling_handler.sig_handler);
+        context.profiling_handler.sig_handler = NULL;
     }
 #endif
 
@@ -780,61 +707,70 @@ static void profiling_handler_ex_hook_before(void)
 {
     /*
         It might appear a bit unfair to resolve & copy the current function
-        name in the context.profiling_handler.stack array even for
-        non-profiled functions.
+        name in the call stack even for non-profiled functions.
         But I've no other choice since I currently don't know how to safely
-        & accuratly resolve the current stack (accordingly to SPX_BUILTINS)
+        & accurately resolve the current stack (accordingly to SPX_BUILTINS)
         via the Zend Engine.
-        The induced overhead will, however, not be noticable in most cases.
+        The induced overhead will, however, not be noticeable in most cases.
     */
 
-    if (context.profiling_handler.depth == STACK_CAPACITY) {
-        spx_utils_die("STACK_CAPACITY exceeded");
+    if (spx_call_stack_is_full(context.profiling_handler.call_stack)) {
+        spx_utils_die("Call stack capacity exceeded");
     }
 
     spx_php_function_t function;
     spx_php_current_function(&function);
 
-    context.profiling_handler.stack[context.profiling_handler.depth] = function;
-
-    context.profiling_handler.depth++;
+    if (spx_call_stack_push(context.profiling_handler.call_stack, &function) != 0) {
+        spx_utils_die("Failed to push to call stack");
+    }
 
     if (!context.profiling_handler.profiler) {
         return;
     }
 
 #ifdef USE_SIGNAL
-    context.profiling_handler.sig_handling.probing = 1;
+    if (context.profiling_handler.sig_handler) {
+        spx_signal_handler_set_probing(context.profiling_handler.sig_handler, 1);
+    }
 #endif
 
     context.profiling_handler.profiler->call_start(context.profiling_handler.profiler, &function);
 
 #ifdef USE_SIGNAL
-    context.profiling_handler.sig_handling.probing = 0;
-    if (context.profiling_handler.sig_handling.stop) {
-        profiling_handler_sig_terminate();
+    if (context.profiling_handler.sig_handler) {
+        spx_signal_handler_set_probing(context.profiling_handler.sig_handler, 0);
+        if (spx_signal_handler_should_stop(context.profiling_handler.sig_handler)) {
+            profiling_handler_sig_terminate();
+        }
     }
 #endif
 }
 
 static void profiling_handler_ex_hook_after(void)
 {
-    context.profiling_handler.depth--;
+    if (spx_call_stack_pop(context.profiling_handler.call_stack, NULL) != 0) {
+        spx_utils_die("Failed to pop from call stack");
+    }
 
     if (!context.profiling_handler.profiler) {
         return;
     }
 
 #ifdef USE_SIGNAL
-    context.profiling_handler.sig_handling.probing = 1;
+    if (context.profiling_handler.sig_handler) {
+        spx_signal_handler_set_probing(context.profiling_handler.sig_handler, 1);
+    }
 #endif
 
     context.profiling_handler.profiler->call_end(context.profiling_handler.profiler);
 
 #ifdef USE_SIGNAL
-    context.profiling_handler.sig_handling.probing = 0;
-    if (context.profiling_handler.sig_handling.stop) {
-        profiling_handler_sig_terminate();
+    if (context.profiling_handler.sig_handler) {
+        spx_signal_handler_set_probing(context.profiling_handler.sig_handler, 0);
+        if (spx_signal_handler_should_stop(context.profiling_handler.sig_handler)) {
+            profiling_handler_sig_terminate();
+        }
     }
 #endif
 }
@@ -844,53 +780,13 @@ static void profiling_handler_sig_terminate(void)
 {
     profiling_handler_shutdown();
 
-    _exit(
-        context.profiling_handler.sig_handling.signo < 0 ?
-            EXIT_SUCCESS : 128 + context.profiling_handler.sig_handling.signo
-    );
-}
-
-static void profiling_handler_sig_handler(int signo)
-{
-    context.profiling_handler.sig_handling.handler_called++;
-    if (context.profiling_handler.sig_handling.handler_called > 1) {
-        return;
+    /* Get signal number from signal handler if available */
+    int signo = -1;
+    if (context.profiling_handler.sig_handler) {
+        signo = spx_signal_handler_get_signo(context.profiling_handler.sig_handler);
     }
 
-    context.profiling_handler.sig_handling.signo = signo;
-
-    if (context.profiling_handler.sig_handling.probing) {
-        context.profiling_handler.sig_handling.stop = 1;
-
-        return;
-    }
-
-    profiling_handler_sig_terminate();
-}
-
-static void profiling_handler_sig_set_handler(void)
-{
-    struct sigaction act;
-
-    act.sa_handler = profiling_handler_sig_handler;
-    act.sa_flags = 0;
-
-    sigaction(SIGINT, &act, &context.profiling_handler.sig_handling.prev_handler.sigint);
-    sigaction(SIGTERM, &act, &context.profiling_handler.sig_handling.prev_handler.sigterm);
-
-    context.profiling_handler.sig_handling.handler_set = 1;
-}
-
-static void profiling_handler_sig_unset_handler(void)
-{
-    if (!context.profiling_handler.sig_handling.handler_set) {
-        return;
-    }
-
-    sigaction(SIGINT, &context.profiling_handler.sig_handling.prev_handler.sigint, NULL);
-    sigaction(SIGTERM, &context.profiling_handler.sig_handling.prev_handler.sigterm, NULL);
-
-    context.profiling_handler.sig_handling.handler_set = 0;
+    _exit(signo < 0 ? EXIT_SUCCESS : 128 + signo);
 }
 #endif /* defined(USE_SIGNAL) */
 
@@ -912,11 +808,8 @@ static void http_ui_handler_shutdown(void)
         goto error_404;
     }
 
-    const char * ui_uri = context.config.ui_uri;
-    if (
-        ui_uri[0] == 0
-        || 0 == strcmp(ui_uri, "/")
-    ) {
+    const char *ui_uri = context.config.ui_uri;
+    if (ui_uri[0] == 0 || 0 == strcmp(ui_uri, "/")) {
         ui_uri = "/index.html";
     }
 
@@ -930,15 +823,9 @@ static void http_ui_handler_shutdown(void)
 
     char local_file_absolute_path[PATH_MAX];
 
-    if (
-        spx_utils_resolve_confined_file_absolute_path(
-            SPX_G(http_ui_assets_dir),
-            ui_uri,
-            NULL,
-            local_file_absolute_path,
-            sizeof(local_file_absolute_path)
-        ) == NULL
-    ) {
+    if (spx_utils_resolve_confined_file_absolute_path(SPX_G(http_ui_assets_dir), ui_uri, NULL,
+                                                      local_file_absolute_path,
+                                                      sizeof(local_file_absolute_path)) == NULL) {
         goto error_404;
     }
 
@@ -961,7 +848,7 @@ finish:
 #endif
 }
 
-static int http_ui_handler_data(const char * data_dir, const char *relative_path)
+static int http_ui_handler_data(const char *data_dir, const char *relative_path)
 {
     if (0 == strcmp(relative_path, "/data/metrics")) {
         spx_php_output_add_header_line("HTTP/1.1 200 OK");
@@ -983,20 +870,19 @@ static int http_ui_handler_data(const char * data_dir, const char *relative_path
 
             spx_php_output_direct_print("\"type\": \"");
             switch (spx_metric_info[i].type) {
-                case SPX_FMT_TIME:
-                    spx_php_output_direct_print("time");
-                    break;
+            case SPX_FMT_TIME:
+                spx_php_output_direct_print("time");
+                break;
 
-                case SPX_FMT_MEMORY:
-                    spx_php_output_direct_print("memory");
-                    break;
+            case SPX_FMT_MEMORY:
+                spx_php_output_direct_print("memory");
+                break;
 
-                case SPX_FMT_QUANTITY:
-                    spx_php_output_direct_print("quantity");
-                    break;
+            case SPX_FMT_QUANTITY:
+                spx_php_output_direct_print("quantity");
+                break;
 
-                default:
-                    ;
+            default:;
             }
 
             spx_php_output_direct_print("\",");
@@ -1018,44 +904,31 @@ static int http_ui_handler_data(const char * data_dir, const char *relative_path
 
         spx_php_output_direct_print("{\"results\": [\n");
 
-        spx_reporter_full_metadata_list_files(
-            data_dir,
-            http_ui_handler_list_metadata_files_callback
-        );
+        spx_reporter_full_metadata_list_files(data_dir,
+                                              http_ui_handler_list_metadata_files_callback);
 
         spx_php_output_direct_print("]}\n");
 
         return 0;
     }
 
-    const char * get_report_metadata_uri = "/data/reports/metadata/";
+    const char *get_report_metadata_uri = "/data/reports/metadata/";
     if (spx_utils_str_starts_with(relative_path, get_report_metadata_uri)) {
         char file_name[PATH_MAX];
-        if (
-            spx_reporter_full_build_metadata_file_name(
-                data_dir,
-                relative_path + strlen(get_report_metadata_uri) - 1,
-                file_name,
-                sizeof(file_name)
-            ) == NULL
-        ) {
+        if (spx_reporter_full_build_metadata_file_name(
+                data_dir, relative_path + strlen(get_report_metadata_uri) - 1, file_name,
+                sizeof(file_name)) == NULL) {
             return -1;
         }
 
         return http_ui_handler_output_file(file_name);
     }
 
-    const char * get_report_uri = "/data/reports/get/";
+    const char *get_report_uri = "/data/reports/get/";
     if (spx_utils_str_starts_with(relative_path, get_report_uri)) {
         char file_name[PATH_MAX];
-        if (
-            spx_reporter_full_build_file_name(
-                data_dir,
-                relative_path + strlen(get_report_uri) - 1,
-                file_name,
-                sizeof(file_name)
-            ) == NULL
-        ) {
+        if (spx_reporter_full_build_file_name(data_dir, relative_path + strlen(get_report_uri) - 1,
+                                              file_name, sizeof(file_name)) == NULL) {
             return -1;
         }
 
@@ -1065,13 +938,13 @@ static int http_ui_handler_data(const char * data_dir, const char *relative_path
     return -1;
 }
 
-static void http_ui_handler_list_metadata_files_callback(const char * file_name, size_t count)
+static void http_ui_handler_list_metadata_files_callback(const char *file_name, size_t count)
 {
     if (count > 0) {
         spx_php_output_direct_print(",");
     }
 
-    FILE * fp = fopen(file_name, "r");
+    FILE *fp = fopen(file_name, "r");
     if (!fp) {
         return;
     }
@@ -1080,28 +953,23 @@ static void http_ui_handler_list_metadata_files_callback(const char * file_name,
     fclose(fp);
 }
 
-static int http_ui_handler_output_file(const char * file_name)
+static int http_ui_handler_output_file(const char *file_name)
 {
-    FILE * fp = fopen(file_name, "rb");
+    FILE *fp = fopen(file_name, "rb");
     if (!fp) {
         return -1;
     }
 
     char suffix[32];
     int suffix_offset = strlen(file_name) - (sizeof(suffix) - 1);
-    snprintf(
-        suffix,
-        sizeof(suffix),
-        "%s",
-        file_name + (suffix_offset < 0 ? 0 : suffix_offset)
-    );
+    snprintf(suffix, sizeof(suffix), "%s", file_name + (suffix_offset < 0 ? 0 : suffix_offset));
 
     const int compressed = spx_utils_str_ends_with(suffix, ".gz");
     if (compressed) {
         *strrchr(suffix, '.') = 0;
     }
 
-    const char * content_type = "application/octet-stream";
+    const char *content_type = "application/octet-stream";
     if (spx_utils_str_ends_with(suffix, ".html")) {
         content_type = "text/html; charset=utf-8";
     } else if (spx_utils_str_ends_with(suffix, ".css")) {
@@ -1130,7 +998,7 @@ static int http_ui_handler_output_file(const char * file_name)
     return 0;
 }
 
-static void read_stream_content(FILE * stream, size_t (*callback) (const void * ptr, size_t len))
+static void read_stream_content(FILE *stream, size_t (*callback)(const void *ptr, size_t len))
 {
     char buf[8 * 1024];
     while (1) {
