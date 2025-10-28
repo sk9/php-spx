@@ -44,12 +44,13 @@ static SPX_THREAD_TLS struct {
 
 void spx_metric_builtin_register_all(void)
 {
+    size_t i;
     if (builtin_registered) {
         return; /* Already registered */
     }
 
     /* Initialize all IDs to NONE */
-    for (size_t i = 0; i < SPX_METRIC_COUNT; i++) {
+    for (i = 0; i < SPX_METRIC_COUNT; i++) {
         builtin_registry_ids[i] = SPX_METRIC_ID_NONE;
     }
 
@@ -222,7 +223,7 @@ void spx_metric_builtin_register_all(void)
                                        SPX_METRIC_IO_RBYTES,
                                        SPX_METRIC_IO_WBYTES};
 
-    for (size_t i = 0; i < 22; i++) {
+    for (i = 0; i < 22; i++) {
         spx_metric_id_t id = spx_metric_registry_register(&metrics[i]);
         if (id == SPX_METRIC_ID_NONE) {
             /* Registration failed - this is a fatal error */

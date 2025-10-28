@@ -73,6 +73,8 @@ if test "$PHP_SPX" = "yes"; then
         src/spx_reporter_fp.c       \
         src/spx_reporter_trace.c    \
         src/spx_metric.c            \
+        src/spx_metric_registry.c   \
+        src/spx_metric_builtin.c    \
         src/spx_resource_stats.c    \
         src/spx_hmap.c              \
         src/spx_str_builder.c       \

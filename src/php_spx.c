@@ -206,6 +206,9 @@ static PHP_MINIT_FUNCTION(spx)
     spx_php_global_hooks_set();
 #endif
 
+    /* Initialize metric system - must be called before any metrics are used */
+    spx_metric_init();
+
     REGISTER_INI_ENTRIES();
 
     return SUCCESS;

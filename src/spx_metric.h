@@ -69,7 +69,7 @@ typedef struct {
     size_t (*handler)(void);
 } spx_metric_info_t;
 
-extern const spx_metric_info_t spx_metric_info[SPX_METRIC_COUNT];
+extern spx_metric_info_t spx_metric_info[SPX_METRIC_COUNT];
 
 /**
  * Initialize the metric system.

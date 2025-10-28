@@ -44,7 +44,7 @@ static void collect_raw_values(const int *enabled_metrics, double *current_value
  * This ensures existing code continues to work without modification.
  */
 static spx_metric_info_t metric_info_compat[SPX_METRIC_COUNT];
-const spx_metric_info_t spx_metric_info[SPX_METRIC_COUNT] = {0}; /* Will be copied from compat */
+spx_metric_info_t spx_metric_info[SPX_METRIC_COUNT] = {0}; /* Will be copied from compat */
 
 static int metrics_initialized = 0;
 
