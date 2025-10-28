@@ -15,7 +15,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #ifndef SPX_RESOURCE_STATS_H_DEFINED
 #define SPX_RESOURCE_STATS_H_DEFINED
 
@@ -28,6 +27,6 @@ size_t spx_resource_stats_cpu_time(void);
 
 size_t spx_resource_stats_own_rss(void);
 
-void spx_resource_stats_io(size_t * in, size_t * out);
+void spx_resource_stats_io(size_t *in, size_t *out);
 
 #endif /* SPX_RESOURCE_STATS_H_DEFINED */

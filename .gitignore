@@ -34,3 +34,22 @@ tmp-php.ini
 *.swp
 *.loT
 *.dep
+php_test_results_*.txt
+
+# Coverage files
+*.gcda
+*.gcno
+*.gcov
+coverage.info
+coverage_filtered.info
+coverage_html/
+build_coverage.sh
+
+# Test output files
+spx_trace.txt.gz
+tests/*.out
+tests/*.exp
+tests/*.diff
+tests/*.sh
+tests/*.log
+tests/*.php

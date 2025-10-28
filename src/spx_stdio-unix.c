@@ -18,7 +18,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-static FILE * null_output;
+static FILE *null_output;
 static int null_output_initialized;
 
 int spx_stdio_disabling_supported(void)

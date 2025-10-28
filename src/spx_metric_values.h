@@ -10,8 +10,8 @@
 #ifndef SPX_METRIC_VALUES_H_DEFINED
 #define SPX_METRIC_VALUES_H_DEFINED
 
-#include "spx_profiler.h"
 #include "spx_metric.h"
+#include "spx_profiler.h"
 #include <string.h>
 
 /**
@@ -19,7 +19,8 @@
  *
  * @param m Pointer to metric values structure
  */
-static inline void spx_metric_values_zero(spx_profiler_metric_values_t *m) {
+static inline void spx_metric_values_zero(spx_profiler_metric_values_t *m)
+{
     memset(m->values, 0, sizeof(m->values));
 }
 
@@ -29,11 +30,11 @@ static inline void spx_metric_values_zero(spx_profiler_metric_values_t *m) {
  * @param dest Destination (modified in place)
  * @param src Source values to add
  */
-static inline void spx_metric_values_add(
-    spx_profiler_metric_values_t *dest,
-    const spx_profiler_metric_values_t *src
-) {
-    for (size_t i = 0; i < SPX_METRIC_COUNT; i++) {
+static inline void spx_metric_values_add(spx_profiler_metric_values_t *dest,
+                                         const spx_profiler_metric_values_t *src)
+{
+    size_t i;
+    for (i = 0; i < SPX_METRIC_COUNT; i++) {
         dest->values[i] += src->values[i];
     }
 }
@@ -44,11 +45,11 @@ static inline void spx_metric_values_add(
  * @param dest Destination (modified in place)
  * @param src Source values to subtract
  */
-static inline void spx_metric_values_sub(
-    spx_profiler_metric_values_t *dest,
-    const spx_profiler_metric_values_t *src
-) {
-    for (size_t i = 0; i < SPX_METRIC_COUNT; i++) {
+static inline void spx_metric_values_sub(spx_profiler_metric_values_t *dest,
+                                         const spx_profiler_metric_values_t *src)
+{
+    size_t i;
+    for (i = 0; i < SPX_METRIC_COUNT; i++) {
         dest->values[i] -= src->values[i];
     }
 }
@@ -59,11 +60,11 @@ static inline void spx_metric_values_sub(
  * @param dest Destination (modified in place)
  * @param src Source values to compare
  */
-static inline void spx_metric_values_max(
-    spx_profiler_metric_values_t *dest,
-    const spx_profiler_metric_values_t *src
-) {
-    for (size_t i = 0; i < SPX_METRIC_COUNT; i++) {
+static inline void spx_metric_values_max(spx_profiler_metric_values_t *dest,
+                                         const spx_profiler_metric_values_t *src)
+{
+    size_t i;
+    for (i = 0; i < SPX_METRIC_COUNT; i++) {
         if (src->values[i] > dest->values[i]) {
             dest->values[i] = src->values[i];
         }
@@ -76,10 +77,9 @@ static inline void spx_metric_values_max(
  * @param dest Destination
  * @param src Source values
  */
-static inline void spx_metric_values_copy(
-    spx_profiler_metric_values_t *dest,
-    const spx_profiler_metric_values_t *src
-) {
+static inline void spx_metric_values_copy(spx_profiler_metric_values_t *dest,
+                                          const spx_profiler_metric_values_t *src)
+{
     memcpy(dest->values, src->values, sizeof(dest->values));
 }
 

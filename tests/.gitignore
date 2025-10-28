@@ -3,3 +3,4 @@
 !*.phpt
 !*.inc
 !data_dir
+!unit/

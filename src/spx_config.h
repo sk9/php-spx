@@ -15,12 +15,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #ifndef SPX_CONFIG_H_DEFINED
 #define SPX_CONFIG_H_DEFINED
 
-#include <stddef.h>
 #include "spx_metric.h"
+#include <stddef.h>
 
 typedef enum {
     SPX_CONFIG_REPORT_FULL,
@@ -30,9 +29,9 @@ typedef enum {
 
 typedef struct {
     int enabled;
-    const char * key;
+    const char *key;
 
-    const char * ui_uri;
+    const char *ui_uri;
 
     int auto_start;
 
@@ -50,7 +49,7 @@ typedef struct {
     int fp_live;
     int fp_color;
 
-    const char * trace_file;
+    const char *trace_file;
     int trace_safe;
 } spx_config_t;
 
@@ -62,6 +61,6 @@ typedef enum {
     SPX_CONFIG_SOURCE_HTTP_QUERY_STRING,
 } spx_config_source_t;
 
-void spx_config_get(spx_config_t * config, int cli, ...);
+void spx_config_get(spx_config_t *config, int cli, ...);
 
 #endif /* SPX_CONFIG_H_DEFINED */

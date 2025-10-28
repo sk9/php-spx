@@ -15,21 +15,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 /* _GNU_SOURCE is implicitly defined since PHP 8.2 https://github.com/php/php-src/pull/8807 */
 #ifndef _GNU_SOURCE
-#   define _GNU_SOURCE
+#define _GNU_SOURCE
 #endif
 
-#include <time.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
+#include <fcntl.h>
 #include <sched.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
-#include <fcntl.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "spx_resource_stats.h"
@@ -50,12 +49,7 @@ void spx_resource_stats_init(void)
     context.procfs_status_fd = open("/proc/self/status", O_RDONLY);
 
     char procfs_io_file[64];
-    snprintf(
-        procfs_io_file,
-        sizeof(procfs_io_file),
-        "/proc/self/task/%lu/io",
-        syscall(SYS_gettid)
-    );
+    snprintf(procfs_io_file, sizeof(procfs_io_file), "/proc/self/task/%lu/io", syscall(SYS_gettid));
 
     context.procfs_io_fd = open(procfs_io_file, O_RDONLY);
     context.io_r_noise = 0;
@@ -110,11 +104,7 @@ size_t spx_resource_stats_own_rss(void)
 
     lseek(context.procfs_status_fd, 0, SEEK_SET);
 
-    context.io_r_noise += read(
-        context.procfs_status_fd,
-        context.lg_buf,
-        sizeof(context.lg_buf)
-    );
+    context.io_r_noise += read(context.procfs_status_fd, context.lg_buf, sizeof(context.lg_buf));
 
     size_t stat_name_start = 0;
     int reading_rss_anonymous = 0;
@@ -133,11 +123,7 @@ size_t spx_resource_stats_own_rss(void)
         }
 
         if (c == ':') {
-            if (0 == strncmp(
-                "RssAnon",
-                context.lg_buf + stat_name_start,
-                i - stat_name_start)
-            ) {
+            if (0 == strncmp("RssAnon", context.lg_buf + stat_name_start, i - stat_name_start)) {
                 reading_rss_anonymous = 1;
             }
 
@@ -160,7 +146,7 @@ size_t spx_resource_stats_own_rss(void)
     return rss_anonymous;
 }
 
-void spx_resource_stats_io(size_t * in, size_t * out)
+void spx_resource_stats_io(size_t *in, size_t *out)
 {
     *in = 0;
     *out = 0;
@@ -174,8 +160,8 @@ void spx_resource_stats_io(size_t * in, size_t * out)
     char buf[64];
     context.io_r_noise += read(context.procfs_io_fd, buf, sizeof(buf));
 
-    const char * p;
-    size_t * cur_num = in;
+    const char *p;
+    size_t *cur_num = in;
     for (p = buf; p != buf + sizeof(buf); p++) {
         /* procfs -> ASCII */
         if ('0' <= *p && *p <= '9') {

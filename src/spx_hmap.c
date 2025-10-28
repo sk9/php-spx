@@ -15,7 +15,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -24,24 +23,24 @@
 #define HSET_BUCKET_SIZE 4
 
 struct spx_hmap_entry_t {
-    const void * key;
-    void * value;
+    const void *key;
+    void *value;
     int free;
 };
 
 typedef struct hmap_bucket_t {
     spx_hmap_entry_t entries[HSET_BUCKET_SIZE];
-    struct hmap_bucket_t * next;
+    struct hmap_bucket_t *next;
 } hmap_bucket_t;
 
 struct spx_hmap_t {
     spx_hmap_hash_key_func_t hash;
     spx_hmap_cmp_key_func_t cmp;
     size_t size;
-    hmap_bucket_t * buckets;
+    hmap_bucket_t *buckets;
 };
 
-static void bucket_init(hmap_bucket_t * bucket)
+static void bucket_init(hmap_bucket_t *bucket)
 {
     bucket->next = NULL;
     size_t i;
@@ -50,7 +49,7 @@ static void bucket_init(hmap_bucket_t * bucket)
     }
 }
 
-static void bucket_release_chain(hmap_bucket_t * bucket)
+static void bucket_release_chain(hmap_bucket_t *bucket)
 {
     if (!bucket->next) {
         return;
@@ -60,16 +59,12 @@ static void bucket_release_chain(hmap_bucket_t * bucket)
     free(bucket->next);
 }
 
-static spx_hmap_entry_t * bucket_get_entry(
-    hmap_bucket_t * bucket,
-    spx_hmap_cmp_key_func_t cmp,
-    const void * key,
-    int existing,
-    int * new
-) {
+static spx_hmap_entry_t *bucket_get_entry(hmap_bucket_t *bucket, spx_hmap_cmp_key_func_t cmp,
+                                          const void *key, int existing, int *new)
+{
     size_t i;
     for (i = 0; i < HSET_BUCKET_SIZE; i++) {
-        spx_hmap_entry_t * entry = &bucket->entries[i];
+        spx_hmap_entry_t *entry = &bucket->entries[i];
         if (entry->free) {
             if (existing) {
                 return NULL;
@@ -106,21 +101,12 @@ static spx_hmap_entry_t * bucket_get_entry(
         bucket_init(bucket->next);
     }
 
-    return bucket_get_entry(
-        bucket->next,
-        cmp,
-        key,
-        existing,
-        new
-    );
+    return bucket_get_entry(bucket->next, cmp, key, existing, new);
 }
 
-spx_hmap_t * spx_hmap_create(
-    size_t size,
-    spx_hmap_hash_key_func_t hash,
-    spx_hmap_cmp_key_func_t cmp
-) {
-    spx_hmap_t * hmap = malloc(sizeof(*hmap));
+spx_hmap_t *spx_hmap_create(size_t size, spx_hmap_hash_key_func_t hash, spx_hmap_cmp_key_func_t cmp)
+{
+    spx_hmap_t *hmap = malloc(sizeof(*hmap));
     if (!hmap) {
         goto error;
     }
@@ -146,7 +132,7 @@ error:
     return NULL;
 }
 
-void spx_hmap_reset(spx_hmap_t * hmap)
+void spx_hmap_reset(spx_hmap_t *hmap)
 {
     size_t i;
     for (i = 0; i < hmap->size; i++) {
@@ -155,7 +141,7 @@ void spx_hmap_reset(spx_hmap_t * hmap)
     }
 }
 
-void spx_hmap_destroy(spx_hmap_t * hmap)
+void spx_hmap_destroy(spx_hmap_t *hmap)
 {
     size_t i;
     for (i = 0; i < hmap->size; i++) {
@@ -166,25 +152,15 @@ void spx_hmap_destroy(spx_hmap_t * hmap)
     free(hmap);
 }
 
-spx_hmap_entry_t * spx_hmap_ensure_entry(spx_hmap_t * hmap, const void * key, int * new) {
-    return bucket_get_entry(
-        &hmap->buckets[hmap->hash(key) % hmap->size],
-        hmap->cmp,
-        key,
-        0,
-        new
-    );
+spx_hmap_entry_t *spx_hmap_ensure_entry(spx_hmap_t *hmap, const void *key, int *new)
+{
+    return bucket_get_entry(&hmap->buckets[hmap->hash(key) % hmap->size], hmap->cmp, key, 0, new);
 }
 
-void * spx_hmap_get_value(spx_hmap_t * hmap, const void * key)
+void *spx_hmap_get_value(spx_hmap_t *hmap, const void *key)
 {
-    const spx_hmap_entry_t * entry = bucket_get_entry(
-        &hmap->buckets[hmap->hash(key) % hmap->size],
-        hmap->cmp,
-        key,
-        1,
-        NULL
-    );
+    const spx_hmap_entry_t *entry =
+        bucket_get_entry(&hmap->buckets[hmap->hash(key) % hmap->size], hmap->cmp, key, 1, NULL);
 
     if (!entry) {
         return NULL;
@@ -193,7 +169,7 @@ void * spx_hmap_get_value(spx_hmap_t * hmap, const void * key)
     return entry->value;
 }
 
-int spx_hmap_set_entry_key(spx_hmap_t * hmap, spx_hmap_entry_t * entry, const void * key)
+int spx_hmap_set_entry_key(spx_hmap_t *hmap, spx_hmap_entry_t *entry, const void *key)
 {
     if (0 != hmap->cmp(entry->key, key)) {
         return 0;
@@ -204,12 +180,12 @@ int spx_hmap_set_entry_key(spx_hmap_t * hmap, spx_hmap_entry_t * entry, const vo
     return 1;
 }
 
-void spx_hmap_entry_set_value(spx_hmap_entry_t * entry, void * value)
+void spx_hmap_entry_set_value(spx_hmap_entry_t *entry, void *value)
 {
     entry->value = value;
 }
 
-void * spx_hmap_entry_get_value(const spx_hmap_entry_t * entry)
+void *spx_hmap_entry_get_value(const spx_hmap_entry_t *entry)
 {
     return entry->value;
 }

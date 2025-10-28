@@ -23,13 +23,11 @@
 #include "spx_profiler_sampler.h"
 #include "spx_utils.h"
 
-
 #define STACK_CAPACITY 2048
-
 
 typedef struct {
     spx_profiler_t base;
-    spx_profiler_t * sampled_profiler;
+    spx_profiler_t *sampled_profiler;
 
     size_t sampling_period_us;
 
@@ -47,40 +45,32 @@ typedef struct {
     } stack;
 } sampling_profiler_t;
 
+static void *sampling_profiler_heartbeat_handler(void *arg);
 
-static void * sampling_profiler_heartbeat_handler(void * arg);
+static void sampling_profiler_call_start(spx_profiler_t *base_profiler,
+                                         const spx_php_function_t *function);
+static void sampling_profiler_call_end(spx_profiler_t *base_profiler);
+static void sampling_profiler_handle_sample(sampling_profiler_t *profiler, int call_end);
 
-static void sampling_profiler_call_start(spx_profiler_t * base_profiler, const spx_php_function_t * function);
-static void sampling_profiler_call_end(spx_profiler_t * base_profiler);
-static void sampling_profiler_handle_sample(sampling_profiler_t * profiler, int call_end);
+static void sampling_profiler_finalize(spx_profiler_t *base_profiler);
+static void sampling_profiler_destroy(spx_profiler_t *base_profiler);
 
-static void sampling_profiler_finalize(spx_profiler_t * base_profiler);
-static void sampling_profiler_destroy(spx_profiler_t * base_profiler);
-
-
-spx_profiler_t * spx_profiler_sampler_create(
-    spx_profiler_t * sampled_profiler,
-    size_t sampling_period_us
-) {
+spx_profiler_t *spx_profiler_sampler_create(spx_profiler_t *sampled_profiler,
+                                            size_t sampling_period_us)
+{
     if (sampling_period_us < 1) {
         spx_utils_die("sampling_period_us must be greater than zero");
     }
 
-    sampling_profiler_t * profiler = malloc(sizeof(*profiler));
+    sampling_profiler_t *profiler = malloc(sizeof(*profiler));
     if (!profiler) {
         goto error;
     }
 
     profiler->heartbeat.ready = 1;
     profiler->heartbeat.stop = 0;
-    if (
-        pthread_create(
-            &profiler->heartbeat.thread,
-            NULL,
-            sampling_profiler_heartbeat_handler,
-            profiler
-        ) != 0
-    ) {
+    if (pthread_create(&profiler->heartbeat.thread, NULL, sampling_profiler_heartbeat_handler,
+                       profiler) != 0) {
         goto error;
     }
 
@@ -103,10 +93,9 @@ error:
     return NULL;
 }
 
-
-static void * sampling_profiler_heartbeat_handler(void * arg)
+static void *sampling_profiler_heartbeat_handler(void *arg)
 {
-    sampling_profiler_t * profiler = arg;
+    sampling_profiler_t *profiler = arg;
     struct timespec period;
 
     period.tv_sec = profiler->sampling_period_us / (1000 * 1000);
@@ -124,9 +113,10 @@ static void * sampling_profiler_heartbeat_handler(void * arg)
     return NULL;
 }
 
-static void sampling_profiler_call_start(spx_profiler_t * base_profiler, const spx_php_function_t * function)
+static void sampling_profiler_call_start(spx_profiler_t *base_profiler,
+                                         const spx_php_function_t *function)
 {
-    sampling_profiler_t * profiler = (sampling_profiler_t *) base_profiler;
+    sampling_profiler_t *profiler = (sampling_profiler_t *) base_profiler;
 
     if (profiler->stack.current.size == STACK_CAPACITY) {
         spx_utils_die("STACK_CAPACITY exceeded");
@@ -138,16 +128,16 @@ static void sampling_profiler_call_start(spx_profiler_t * base_profiler, const s
     sampling_profiler_handle_sample(profiler, 0);
 }
 
-static void sampling_profiler_call_end(spx_profiler_t * base_profiler)
+static void sampling_profiler_call_end(spx_profiler_t *base_profiler)
 {
-    sampling_profiler_t * profiler = (sampling_profiler_t *) base_profiler;
+    sampling_profiler_t *profiler = (sampling_profiler_t *) base_profiler;
 
     sampling_profiler_handle_sample(profiler, 1);
 
     profiler->stack.current.size--;
 }
 
-static void sampling_profiler_handle_sample(sampling_profiler_t * profiler, int call_end)
+static void sampling_profiler_handle_sample(sampling_profiler_t *profiler, int call_end)
 {
     if (!__atomic_load_n(&profiler->heartbeat.ready, __ATOMIC_SEQ_CST)) {
         return;
@@ -157,17 +147,13 @@ static void sampling_profiler_handle_sample(sampling_profiler_t * profiler, int 
 
     int common_stack_top = 0;
     while (1) {
-        if (
-            common_stack_top >= profiler->stack.previous.size
-            || common_stack_top >= profiler->stack.current.size
-        ) {
+        if (common_stack_top >= profiler->stack.previous.size ||
+            common_stack_top >= profiler->stack.current.size) {
             break;
         }
 
-        if (
-            profiler->stack.previous.frames[common_stack_top].hash_code
-                != profiler->stack.current.frames[common_stack_top].hash_code
-        ) {
+        if (profiler->stack.previous.frames[common_stack_top].hash_code !=
+            profiler->stack.current.frames[common_stack_top].hash_code) {
             break;
         }
 
@@ -193,7 +179,8 @@ static void sampling_profiler_handle_sample(sampling_profiler_t * profiler, int 
     /* start all current stack calls (including current top) from common stack */
 
     for (i = common_stack_top; i < profiler->stack.current.size; i++) {
-        profiler->sampled_profiler->call_start(profiler->sampled_profiler, &profiler->stack.current.frames[i]);
+        profiler->sampled_profiler->call_start(profiler->sampled_profiler,
+                                               &profiler->stack.current.frames[i]);
     }
 
     /* copy the current stack to the previous (for next sample) */
@@ -211,16 +198,16 @@ static void sampling_profiler_handle_sample(sampling_profiler_t * profiler, int 
     }
 }
 
-static void sampling_profiler_finalize(spx_profiler_t * base_profiler)
+static void sampling_profiler_finalize(spx_profiler_t *base_profiler)
 {
-    sampling_profiler_t * profiler = (sampling_profiler_t *) base_profiler;
+    sampling_profiler_t *profiler = (sampling_profiler_t *) base_profiler;
 
     profiler->sampled_profiler->finalize(profiler->sampled_profiler);
 }
 
-static void sampling_profiler_destroy(spx_profiler_t * base_profiler)
+static void sampling_profiler_destroy(spx_profiler_t *base_profiler)
 {
-    sampling_profiler_t * profiler = (sampling_profiler_t *) base_profiler;
+    sampling_profiler_t *profiler = (sampling_profiler_t *) base_profiler;
 
     __atomic_store_n(&profiler->heartbeat.stop, 1, __ATOMIC_SEQ_CST);
     pthread_join(profiler->heartbeat.thread, NULL);

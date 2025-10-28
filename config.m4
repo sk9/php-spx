@@ -73,6 +73,8 @@ if test "$PHP_SPX" = "yes"; then
         src/spx_reporter_fp.c       \
         src/spx_reporter_trace.c    \
         src/spx_metric.c            \
+        src/spx_metric_registry.c   \
+        src/spx_metric_builtin.c    \
         src/spx_resource_stats.c    \
         src/spx_hmap.c              \
         src/spx_str_builder.c       \
@@ -81,7 +83,11 @@ if test "$PHP_SPX" = "yes"; then
         src/spx_stdio.c             \
         src/spx_config.c            \
         src/spx_utils.c             \
-        src/spx_fmt.c,
+        src/spx_fmt.c               \
+        src/spx_limits.c            \
+        src/spx_call_stack.c        \
+        src/spx_signal_handler.c    \
+        src/spx_string_pool.c,
         $ext_shared)
 
     PHP_ADD_MAKEFILE_FRAGMENT

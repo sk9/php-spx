@@ -105,10 +105,13 @@ spx_metric_id_t spx_metric_registry_register(const spx_metric_plugin_t *plugin)
     }
 
     /* Check for duplicate key */
-    for (size_t i = 0; i < registry.count; i++) {
-        if (strcmp(registry.metrics[i].info.key, plugin->key) == 0) {
-            spx_error_set(SPX_ERR_INVALID_CONFIG, "Metric key already registered");
-            return SPX_METRIC_ID_NONE;
+    {
+        size_t i;
+        for (i = 0; i < registry.count; i++) {
+            if (strcmp(registry.metrics[i].info.key, plugin->key) == 0) {
+                spx_error_set(SPX_ERR_INVALID_CONFIG, "Metric key already registered");
+                return SPX_METRIC_ID_NONE;
+            }
         }
     }
 
@@ -142,11 +145,12 @@ spx_metric_id_t spx_metric_registry_register(const spx_metric_plugin_t *plugin)
 
 spx_metric_id_t spx_metric_registry_get_by_key(const char *key)
 {
+    size_t i;
     if (!registry.initialized || !key) {
         return SPX_METRIC_ID_NONE;
     }
 
-    for (size_t i = 0; i < registry.count; i++) {
+    for (i = 0; i < registry.count; i++) {
         if (strcmp(registry.metrics[i].info.key, key) == 0) {
             return registry.metrics[i].info.id;
         }
@@ -172,11 +176,12 @@ size_t spx_metric_registry_get_count(void)
 void spx_metric_registry_foreach(void (*callback)(const spx_metric_info_ex_t *, void *),
                                  void *user_data)
 {
+    size_t i;
     if (!registry.initialized || !callback) {
         return;
     }
 
-    for (size_t i = 0; i < registry.count; i++) {
+    for (i = 0; i < registry.count; i++) {
         callback(&registry.metrics[i].info, user_data);
     }
 }

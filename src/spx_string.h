@@ -16,7 +16,8 @@
  * @param str String to duplicate (may be NULL)
  * @return Duplicated string or NULL
  */
-static inline char *spx_strdup_safe(const char *str) {
+static inline char *spx_strdup_safe(const char *str)
+{
     return str ? strdup(str) : NULL;
 }
 
@@ -27,7 +28,8 @@ static inline char *spx_strdup_safe(const char *str) {
  * @param default_val Default value to use if str is NULL or empty
  * @return Duplicated string (either str or default_val)
  */
-static inline char *spx_strdup_or_default(const char *str, const char *default_val) {
+static inline char *spx_strdup_or_default(const char *str, const char *default_val)
+{
     if (!str || !*str) {
         return strdup(default_val);
     }
