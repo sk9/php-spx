@@ -34,6 +34,12 @@
 #include "spx_str_builder.h"
 #include "spx_utils.h"
 
+/* Infrastructure modules */
+#include "infrastructure/memory/spx_alloc_safe.h"
+#include "infrastructure/security/spx_security_validation.h"
+#include "infrastructure/spx_error.h"
+#include "infrastructure/string/spx_string_safe.h"
+
 #define BUFFER_CAPACITY 16384
 
 typedef struct {
@@ -117,13 +123,58 @@ size_t spx_reporter_full_metadata_list_files(const char *data_dir,
 char *spx_reporter_full_build_metadata_file_name(const char *data_dir, const char *key,
                                                  char *file_name, size_t size)
 {
-    return spx_utils_resolve_confined_file_absolute_path(data_dir, key, ".json", file_name, size);
+    /* Defensive NULL checks */
+    if (!data_dir || !key || !file_name) {
+        return NULL;
+    }
+
+    /* Safe path construction and validation (Issue 1.2) */
+    char relative_path[PATH_MAX];
+    spx_error_t error = SPX_ERROR_INIT();
+
+    /* Build relative path with suffix */
+    if (spx_string_format_safe(relative_path, sizeof(relative_path), &error, "%s.json", key) < 0) {
+        spx_error_log(&error);
+        return NULL;
+    }
+
+    /* Validate path to prevent traversal attacks */
+    if (spx_validate_path(relative_path, data_dir, 0, file_name, size, &error) !=
+        SPX_VALIDATE_SUCCESS) {
+        spx_error_log(&error);
+        return NULL;
+    }
+
+    return file_name;
 }
 
 char *spx_reporter_full_build_file_name(const char *data_dir, const char *key, char *file_name,
                                         size_t size)
 {
-    return spx_utils_resolve_confined_file_absolute_path(data_dir, key, ".txt.gz", file_name, size);
+    /* Defensive NULL checks */
+    if (!data_dir || !key || !file_name) {
+        return NULL;
+    }
+
+    /* Safe path construction and validation (Issue 1.2) */
+    char relative_path[PATH_MAX];
+    spx_error_t error = SPX_ERROR_INIT();
+
+    /* Build relative path with suffix */
+    if (spx_string_format_safe(relative_path, sizeof(relative_path), &error, "%s.txt.gz", key) <
+        0) {
+        spx_error_log(&error);
+        return NULL;
+    }
+
+    /* Validate path to prevent traversal attacks */
+    if (spx_validate_path(relative_path, data_dir, 0, file_name, size, &error) !=
+        SPX_VALIDATE_SUCCESS) {
+        spx_error_log(&error);
+        return NULL;
+    }
+
+    return file_name;
 }
 
 spx_profiler_reporter_t *spx_reporter_full_create(const char *data_dir)
@@ -151,7 +202,9 @@ spx_profiler_reporter_t *spx_reporter_full_create(const char *data_dir)
     snprintf(reporter->metadata_file_name, sizeof(reporter->metadata_file_name), "%s/%s.json",
              data_dir, reporter->metadata->key);
 
-    (void) mkdir(data_dir, 0777);
+    /* Create directory with secure permissions (Issue 2.2) */
+    /* 0750 = owner rwx, group rx, others no access */
+    (void) mkdir(data_dir, 0750);
     reporter->output = spx_output_stream_open(file_name, 1);
     if (!reporter->output) {
         goto error;
@@ -177,9 +230,28 @@ error:
 void spx_reporter_full_set_custom_metadata_str(const spx_profiler_reporter_t *base_reporter,
                                                const char *custom_metadata_str)
 {
+    /* Defensive NULL checks */
+    if (!base_reporter || !custom_metadata_str) {
+        return;
+    }
+
     const full_reporter_t *reporter = (const full_reporter_t *) base_reporter;
 
-    reporter->metadata->custom_metadata_str = strdup(custom_metadata_str);
+    /* Fix memory leak (Issue 2.1): Free old value before allocating new one */
+    if (reporter->metadata->custom_metadata_str) {
+        free(reporter->metadata->custom_metadata_str);
+    }
+
+    /* Use safe strdup with error handling */
+    spx_error_t error = SPX_ERROR_INIT();
+    reporter->metadata->custom_metadata_str =
+        spx_strdup_checked(custom_metadata_str, "custom_metadata_str", &error);
+
+    if (!reporter->metadata->custom_metadata_str) {
+        spx_error_log(&error);
+        /* Set to NULL on allocation failure to maintain consistent state */
+        reporter->metadata->custom_metadata_str = NULL;
+    }
 }
 
 const char *spx_reporter_full_get_key(const spx_profiler_reporter_t *base_reporter)

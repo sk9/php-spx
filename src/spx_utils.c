@@ -30,18 +30,23 @@
 
 int spx_utils_ip_match(const char *ip_address_str, const char *target)
 {
+    if (!ip_address_str || !target) {
+        return 0;
+    }
+
     if (strcmp(target, "*") == 0 || strcmp(target, ip_address_str) == 0) {
         return 1;
     }
 
-    // subnet handling
-
+    /* Subnet handling */
     const char *slash_ptr = strchr(target, '/');
     if (slash_ptr == NULL) {
         return 0;
     }
 
     const size_t slash_pos = slash_ptr - target;
+
+    /* IPv4 address is 7-15 characters (min: "1.1.1.1", max: "255.255.255.255") */
     if (!(7 <= slash_pos && slash_pos <= 15)) {
         return 0;
     }
@@ -51,17 +56,33 @@ int spx_utils_ip_match(const char *ip_address_str, const char *target)
         return 0;
     }
 
-    char target_ip_address_str[32];
-    strncpy(target_ip_address_str, target, sizeof target_ip_address_str);
-    target_ip_address_str[slash_pos] = 0;
+    /* Use safe buffer size for IPv4 addresses (max 15 chars + null terminator) */
+    char target_ip_address_str[16];
+
+    /* Safely copy IP address part (before slash) with null termination (Issue 1.3) */
+    if (slash_pos >= sizeof(target_ip_address_str)) {
+        return 0;
+    }
+
+    memcpy(target_ip_address_str, target, slash_pos);
+    target_ip_address_str[slash_pos] = '\0';
 
     const in_addr_t target_ip_address = inet_addr(target_ip_address_str);
     if (target_ip_address == INADDR_NONE) {
         return 0;
     }
 
-    char target_mask_str[32];
-    snprintf(target_mask_str, sizeof target_mask_str, "%s", slash_ptr + 1);
+    /* Parse subnet mask bits (e.g., "24" from "/24") */
+    char target_mask_str[4]; /* Max 2 digits + null terminator */
+    size_t mask_len = strlen(slash_ptr + 1);
+
+    if (mask_len >= sizeof(target_mask_str)) {
+        return 0;
+    }
+
+    memcpy(target_mask_str, slash_ptr + 1, mask_len);
+    target_mask_str[mask_len] = '\0';
+
     const long target_mask_bits = strtol(target_mask_str, NULL, 10);
 
     if (!(1 <= target_mask_bits && target_mask_bits <= 31)) {
