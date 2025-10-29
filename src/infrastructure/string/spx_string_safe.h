@@ -18,9 +18,9 @@
 #ifndef SPX_STRING_SAFE_H_DEFINED
 #define SPX_STRING_SAFE_H_DEFINED
 
-#include <stddef.h>
-#include <stdarg.h>
 #include "../spx_error.h"
+#include <stdarg.h>
+#include <stddef.h>
 
 /**
  * Safe string operations
@@ -30,38 +30,17 @@
  */
 
 /* Safe string copy (always null-terminates) */
-size_t spx_string_copy_safe(
-    char *dst,
-    size_t dst_size,
-    const char *src,
-    spx_error_t *error
-);
+size_t spx_string_copy_safe(char *dst, size_t dst_size, const char *src, spx_error_t *error);
 
 /* Safe string concatenation */
-size_t spx_string_concat_safe(
-    char *dst,
-    size_t dst_size,
-    const char *src,
-    spx_error_t *error
-);
+size_t spx_string_concat_safe(char *dst, size_t dst_size, const char *src, spx_error_t *error);
 
 /* Safe string formatting */
-int spx_string_format_safe(
-    char *dst,
-    size_t dst_size,
-    spx_error_t *error,
-    const char *format,
-    ...
-);
+int spx_string_format_safe(char *dst, size_t dst_size, spx_error_t *error, const char *format, ...);
 
 /* Safe string formatting with va_list */
-int spx_string_vformat_safe(
-    char *dst,
-    size_t dst_size,
-    spx_error_t *error,
-    const char *format,
-    va_list args
-);
+int spx_string_vformat_safe(char *dst, size_t dst_size, spx_error_t *error, const char *format,
+                            va_list args);
 
 /* String utility functions */
 int spx_string_starts_with(const char *str, const char *prefix);
@@ -71,16 +50,8 @@ int spx_string_ends_with(const char *str, const char *suffix);
 size_t spx_string_length_safe(const char *str, size_t max_len);
 
 /* String sanitization */
-void spx_string_sanitize_json(
-    char *dst,
-    size_t dst_size,
-    const char *src
-);
+void spx_string_sanitize_json(char *dst, size_t dst_size, const char *src);
 
-void spx_string_sanitize_path(
-    char *dst,
-    size_t dst_size,
-    const char *src
-);
+void spx_string_sanitize_path(char *dst, size_t dst_size, const char *src);
 
 #endif /* SPX_STRING_SAFE_H_DEFINED */

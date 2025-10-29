@@ -16,20 +16,15 @@
  */
 
 #include "spx_string_safe.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 
 /* Safe string copy - always null-terminates */
-size_t spx_string_copy_safe(
-    char *dst,
-    size_t dst_size,
-    const char *src,
-    spx_error_t *error
-) {
+size_t spx_string_copy_safe(char *dst, size_t dst_size, const char *src, spx_error_t *error)
+{
     if (!dst || dst_size == 0) {
-        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT,
-                     "NULL or zero-size destination buffer");
+        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "NULL or zero-size destination buffer");
         return 0;
     }
 
@@ -47,23 +42,18 @@ size_t spx_string_copy_safe(
 
     /* Check if truncation occurred */
     if (src[i] != '\0') {
-        SPX_ERROR_SET(error, SPX_ERR_BUFFER_OVERFLOW,
-                     "String truncated (buffer size: %zu)", dst_size);
+        SPX_ERROR_SET(error, SPX_ERR_BUFFER_OVERFLOW, "String truncated (buffer size: %zu)",
+                      dst_size);
     }
 
     return i;
 }
 
 /* Safe string concatenation */
-size_t spx_string_concat_safe(
-    char *dst,
-    size_t dst_size,
-    const char *src,
-    spx_error_t *error
-) {
+size_t spx_string_concat_safe(char *dst, size_t dst_size, const char *src, spx_error_t *error)
+{
     if (!dst || dst_size == 0) {
-        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT,
-                     "NULL or zero-size destination buffer");
+        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "NULL or zero-size destination buffer");
         return 0;
     }
 
@@ -79,8 +69,7 @@ size_t spx_string_concat_safe(
     }
 
     if (dst_len >= dst_size) {
-        SPX_ERROR_SET(error, SPX_ERR_BUFFER_OVERFLOW,
-                     "Destination buffer not null-terminated");
+        SPX_ERROR_SET(error, SPX_ERR_BUFFER_OVERFLOW, "Destination buffer not null-terminated");
         return 0;
     }
 
@@ -93,24 +82,19 @@ size_t spx_string_concat_safe(
 
     /* Check if truncation occurred */
     if (src[i] != '\0') {
-        SPX_ERROR_SET(error, SPX_ERR_BUFFER_OVERFLOW,
-                     "String truncated (buffer size: %zu)", dst_size);
+        SPX_ERROR_SET(error, SPX_ERR_BUFFER_OVERFLOW, "String truncated (buffer size: %zu)",
+                      dst_size);
     }
 
     return dst_len + i;
 }
 
 /* Safe string formatting */
-int spx_string_vformat_safe(
-    char *dst,
-    size_t dst_size,
-    spx_error_t *error,
-    const char *format,
-    va_list args
-) {
+int spx_string_vformat_safe(char *dst, size_t dst_size, spx_error_t *error, const char *format,
+                            va_list args)
+{
     if (!dst || dst_size == 0) {
-        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT,
-                     "NULL or zero-size destination buffer");
+        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "NULL or zero-size destination buffer");
         return -1;
     }
 
@@ -128,10 +112,9 @@ int spx_string_vformat_safe(
         return -1;
     }
 
-    if ((size_t)written >= dst_size) {
+    if ((size_t) written >= dst_size) {
         SPX_ERROR_SET(error, SPX_ERR_BUFFER_OVERFLOW,
-                     "Format string truncated (needed %d, got %zu)",
-                     written + 1, dst_size);
+                      "Format string truncated (needed %d, got %zu)", written + 1, dst_size);
         /* vsnprintf already null-terminated */
         return -1;
     }
@@ -139,13 +122,8 @@ int spx_string_vformat_safe(
     return written;
 }
 
-int spx_string_format_safe(
-    char *dst,
-    size_t dst_size,
-    spx_error_t *error,
-    const char *format,
-    ...
-) {
+int spx_string_format_safe(char *dst, size_t dst_size, spx_error_t *error, const char *format, ...)
+{
     va_list args;
     va_start(args, format);
     int result = spx_string_vformat_safe(dst, dst_size, error, format, args);
@@ -196,11 +174,8 @@ size_t spx_string_length_safe(const char *str, size_t max_len)
 }
 
 /* JSON sanitization */
-void spx_string_sanitize_json(
-    char *dst,
-    size_t dst_size,
-    const char *src
-) {
+void spx_string_sanitize_json(char *dst, size_t dst_size, const char *src)
+{
     if (!dst || dst_size == 0) {
         return;
     }
@@ -262,11 +237,8 @@ void spx_string_sanitize_json(
 }
 
 /* Path sanitization - removes potentially dangerous characters */
-void spx_string_sanitize_path(
-    char *dst,
-    size_t dst_size,
-    const char *src
-) {
+void spx_string_sanitize_path(char *dst, size_t dst_size, const char *src)
+{
     if (!dst || dst_size == 0) {
         return;
     }

@@ -16,9 +16,9 @@
  */
 
 #include "spx_alloc_safe.h"
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
 
 /* Check for multiplication overflow */
 int spx_check_mul_overflow(size_t a, size_t b, size_t *result)
@@ -30,7 +30,7 @@ int spx_check_mul_overflow(size_t a, size_t b, size_t *result)
 
     /* Check if a * b would overflow */
     if (a > SIZE_MAX / b) {
-        return 1;  /* Overflow would occur */
+        return 1; /* Overflow would occur */
     }
 
     *result = a * b;
@@ -41,7 +41,7 @@ int spx_check_mul_overflow(size_t a, size_t b, size_t *result)
 int spx_check_add_overflow(size_t a, size_t b, size_t *result)
 {
     if (a > SIZE_MAX - b) {
-        return 1;  /* Overflow would occur */
+        return 1; /* Overflow would occur */
     }
 
     *result = a + b;
@@ -49,23 +49,18 @@ int spx_check_add_overflow(size_t a, size_t b, size_t *result)
 }
 
 /* Safe malloc with error handling */
-void *spx_malloc_checked(
-    size_t size,
-    const char *purpose,
-    spx_error_t *error
-) {
+void *spx_malloc_checked(size_t size, const char *purpose, spx_error_t *error)
+{
     if (size == 0) {
-        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT,
-                     "Attempted to allocate 0 bytes for %s",
-                     purpose ? purpose : "unknown");
+        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "Attempted to allocate 0 bytes for %s",
+                      purpose ? purpose : "unknown");
         return NULL;
     }
 
     void *ptr = malloc(size);
     if (!ptr) {
-        SPX_ERROR_SET(error, SPX_ERR_OUT_OF_MEMORY,
-                     "Failed to allocate %zu bytes for %s",
-                     size, purpose ? purpose : "unknown");
+        SPX_ERROR_SET(error, SPX_ERR_OUT_OF_MEMORY, "Failed to allocate %zu bytes for %s", size,
+                      purpose ? purpose : "unknown");
         return NULL;
     }
 
@@ -73,33 +68,27 @@ void *spx_malloc_checked(
 }
 
 /* Safe calloc with error handling */
-void *spx_calloc_checked(
-    size_t nmemb,
-    size_t size,
-    const char *purpose,
-    spx_error_t *error
-) {
+void *spx_calloc_checked(size_t nmemb, size_t size, const char *purpose, spx_error_t *error)
+{
     if (nmemb == 0 || size == 0) {
-        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT,
-                     "Attempted to allocate 0 elements for %s",
-                     purpose ? purpose : "unknown");
+        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "Attempted to allocate 0 elements for %s",
+                      purpose ? purpose : "unknown");
         return NULL;
     }
 
     /* Check for overflow */
     size_t total_size;
     if (spx_check_mul_overflow(nmemb, size, &total_size)) {
-        SPX_ERROR_SET(error, SPX_ERR_BUFFER_OVERFLOW,
-                     "Integer overflow: %zu * %zu for %s",
-                     nmemb, size, purpose ? purpose : "unknown");
+        SPX_ERROR_SET(error, SPX_ERR_BUFFER_OVERFLOW, "Integer overflow: %zu * %zu for %s", nmemb,
+                      size, purpose ? purpose : "unknown");
         return NULL;
     }
 
     void *ptr = calloc(nmemb, size);
     if (!ptr) {
         SPX_ERROR_SET(error, SPX_ERR_OUT_OF_MEMORY,
-                     "Failed to allocate %zu bytes (%zu * %zu) for %s",
-                     total_size, nmemb, size, purpose ? purpose : "unknown");
+                      "Failed to allocate %zu bytes (%zu * %zu) for %s", total_size, nmemb, size,
+                      purpose ? purpose : "unknown");
         return NULL;
     }
 
@@ -107,24 +96,18 @@ void *spx_calloc_checked(
 }
 
 /* Safe realloc with error handling */
-void *spx_realloc_checked(
-    void *ptr,
-    size_t size,
-    const char *purpose,
-    spx_error_t *error
-) {
+void *spx_realloc_checked(void *ptr, size_t size, const char *purpose, spx_error_t *error)
+{
     if (size == 0) {
-        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT,
-                     "Attempted to realloc to 0 bytes for %s",
-                     purpose ? purpose : "unknown");
+        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "Attempted to realloc to 0 bytes for %s",
+                      purpose ? purpose : "unknown");
         return NULL;
     }
 
     void *new_ptr = realloc(ptr, size);
     if (!new_ptr) {
-        SPX_ERROR_SET(error, SPX_ERR_OUT_OF_MEMORY,
-                     "Failed to reallocate to %zu bytes for %s",
-                     size, purpose ? purpose : "unknown");
+        SPX_ERROR_SET(error, SPX_ERR_OUT_OF_MEMORY, "Failed to reallocate to %zu bytes for %s",
+                      size, purpose ? purpose : "unknown");
         return NULL;
     }
 
@@ -143,7 +126,7 @@ void spx_free_safe(void **ptr)
 /* Cleanup function for GCC cleanup attribute */
 void spx_auto_free(void *ptr)
 {
-    void **p = (void **)ptr;
+    void **p = (void **) ptr;
     if (p && *p) {
         free(*p);
         *p = NULL;
@@ -151,18 +134,13 @@ void spx_auto_free(void *ptr)
 }
 
 /* Array allocation with overflow check */
-void *spx_malloc_array(
-    size_t nmemb,
-    size_t size,
-    const char *purpose,
-    spx_error_t *error
-) {
+void *spx_malloc_array(size_t nmemb, size_t size, const char *purpose, spx_error_t *error)
+{
     /* Check for overflow */
     size_t total_size;
     if (spx_check_mul_overflow(nmemb, size, &total_size)) {
-        SPX_ERROR_SET(error, SPX_ERR_BUFFER_OVERFLOW,
-                     "Integer overflow: %zu * %zu for %s",
-                     nmemb, size, purpose ? purpose : "unknown");
+        SPX_ERROR_SET(error, SPX_ERR_BUFFER_OVERFLOW, "Integer overflow: %zu * %zu for %s", nmemb,
+                      size, purpose ? purpose : "unknown");
         return NULL;
     }
 
@@ -170,15 +148,11 @@ void *spx_malloc_array(
 }
 
 /* Safe strdup */
-char *spx_strdup_checked(
-    const char *str,
-    const char *purpose,
-    spx_error_t *error
-) {
+char *spx_strdup_checked(const char *str, const char *purpose, spx_error_t *error)
+{
     if (!str) {
-        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT,
-                     "NULL string for %s",
-                     purpose ? purpose : "unknown");
+        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "NULL string for %s",
+                      purpose ? purpose : "unknown");
         return NULL;
     }
 
@@ -187,9 +161,8 @@ char *spx_strdup_checked(
 
     /* Check for overflow when adding 1 for null terminator */
     if (spx_check_add_overflow(len, 1, &alloc_size)) {
-        SPX_ERROR_SET(error, SPX_ERR_BUFFER_OVERFLOW,
-                     "String too long for %s",
-                     purpose ? purpose : "unknown");
+        SPX_ERROR_SET(error, SPX_ERR_BUFFER_OVERFLOW, "String too long for %s",
+                      purpose ? purpose : "unknown");
         return NULL;
     }
 
@@ -203,16 +176,11 @@ char *spx_strdup_checked(
 }
 
 /* Safe strndup with length limit */
-char *spx_strndup_checked(
-    const char *str,
-    size_t max_len,
-    const char *purpose,
-    spx_error_t *error
-) {
+char *spx_strndup_checked(const char *str, size_t max_len, const char *purpose, spx_error_t *error)
+{
     if (!str) {
-        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT,
-                     "NULL string for %s",
-                     purpose ? purpose : "unknown");
+        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "NULL string for %s",
+                      purpose ? purpose : "unknown");
         return NULL;
     }
 
@@ -224,9 +192,8 @@ char *spx_strndup_checked(
 
     size_t alloc_size;
     if (spx_check_add_overflow(len, 1, &alloc_size)) {
-        SPX_ERROR_SET(error, SPX_ERR_BUFFER_OVERFLOW,
-                     "String too long for %s",
-                     purpose ? purpose : "unknown");
+        SPX_ERROR_SET(error, SPX_ERR_BUFFER_OVERFLOW, "String too long for %s",
+                      purpose ? purpose : "unknown");
         return NULL;
     }
 

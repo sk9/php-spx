@@ -45,7 +45,7 @@
                 /* Log warning if token was truncated */                                           \
                 if (truncated_) {                                                                  \
                     spx_php_log_notice("Token truncated to %zu bytes: %.32s...",                   \
-                                      sizeof(token) - 1, token);                                   \
+                                       sizeof(token) - 1, token);                                  \
                 }                                                                                  \
                                                                                                    \
                 do {                                                                               \

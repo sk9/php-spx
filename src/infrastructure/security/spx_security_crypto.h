@@ -29,11 +29,7 @@
  * SECURITY: This function executes in constant time regardless of where
  * differences occur in the buffers.
  */
-int spx_crypto_compare_constant_time(
-    const void *a,
-    const void *b,
-    size_t len
-);
+int spx_crypto_compare_constant_time(const void *a, const void *b, size_t len);
 
 /**
  * Constant-time string comparison
@@ -44,10 +40,7 @@ int spx_crypto_compare_constant_time(
  * SECURITY: This function executes in constant time regardless of string
  * content. Both strings must be non-NULL.
  */
-int spx_crypto_compare_strings_constant_time(
-    const char *a,
-    const char *b
-);
+int spx_crypto_compare_strings_constant_time(const char *a, const char *b);
 
 /**
  * Generate cryptographically secure random bytes

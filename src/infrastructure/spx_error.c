@@ -44,15 +44,9 @@ static const char *error_names[] = {
     [SPX_ERR_CAPACITY_EXCEEDED] = "SPX_ERR_CAPACITY_EXCEEDED",
 };
 
-void spx_error_set(
-    spx_error_t *error,
-    spx_error_code_t code,
-    const char *file,
-    int line,
-    const char *function,
-    const char *format,
-    ...
-) {
+void spx_error_set(spx_error_t *error, spx_error_code_t code, const char *file, int line,
+                   const char *function, const char *format, ...)
+{
     if (!error) {
         return;
     }
@@ -121,13 +115,11 @@ void spx_error_log(const spx_error_t *error)
         return;
     }
 
-    fprintf(stderr, "SPX Error [%s]: %s\n",
-            spx_error_code_name(error->code),
+    fprintf(stderr, "SPX Error [%s]: %s\n", spx_error_code_name(error->code),
             spx_error_message(error));
 
     if (error->file) {
-        fprintf(stderr, "  at %s:%d in %s\n",
-                error->file, error->line,
+        fprintf(stderr, "  at %s:%d in %s\n", error->file, error->line,
                 error->function ? error->function : "unknown");
     }
 }

@@ -18,9 +18,9 @@
 #ifndef SPX_SECURITY_VALIDATION_H_DEFINED
 #define SPX_SECURITY_VALIDATION_H_DEFINED
 
-#include <stddef.h>
-#include <limits.h>
 #include "../spx_error.h"
+#include <limits.h>
+#include <stddef.h>
 
 /* Validation results */
 typedef enum {
@@ -37,15 +37,13 @@ typedef enum {
 typedef struct {
     size_t min_length;
     size_t max_length;
-    const char *allowed_charset;  /* NULL = allow all printable */
+    const char *allowed_charset; /* NULL = allow all printable */
     int allow_null;
 } spx_string_constraints_t;
 
-spx_validate_result_t spx_validate_string(
-    const char *str,
-    const spx_string_constraints_t *constraints,
-    spx_error_t *error
-);
+spx_validate_result_t spx_validate_string(const char *str,
+                                          const spx_string_constraints_t *constraints,
+                                          spx_error_t *error);
 
 /* Integer parsing with validation */
 typedef enum {
@@ -64,21 +62,11 @@ typedef struct {
     int allow_negative;
 } spx_int_constraints_t;
 
-spx_parse_result_t spx_parse_long(
-    const char *str,
-    long *out_value,
-    long min_value,
-    long max_value,
-    spx_error_t *error
-);
+spx_parse_result_t spx_parse_long(const char *str, long *out_value, long min_value, long max_value,
+                                  spx_error_t *error);
 
-spx_parse_result_t spx_parse_size_t(
-    const char *str,
-    size_t *out_value,
-    size_t min_value,
-    size_t max_value,
-    spx_error_t *error
-);
+spx_parse_result_t spx_parse_size_t(const char *str, size_t *out_value, size_t min_value,
+                                    size_t max_value, spx_error_t *error);
 
 /* Path validation */
 typedef enum {
@@ -89,25 +77,14 @@ typedef enum {
     SPX_PATH_MUST_BE_FILE = 1 << 4
 } spx_path_flags_t;
 
-spx_validate_result_t spx_validate_path(
-    const char *path,
-    const char *base_dir,
-    spx_path_flags_t flags,
-    char *resolved_path,
-    size_t resolved_path_size,
-    spx_error_t *error
-);
+spx_validate_result_t spx_validate_path(const char *path, const char *base_dir,
+                                        spx_path_flags_t flags, char *resolved_path,
+                                        size_t resolved_path_size, spx_error_t *error);
 
 /* IP validation */
-spx_validate_result_t spx_validate_ip_address(
-    const char *ip,
-    spx_error_t *error
-);
+spx_validate_result_t spx_validate_ip_address(const char *ip, spx_error_t *error);
 
-spx_validate_result_t spx_validate_ip_in_whitelist(
-    const char *ip,
-    const char *whitelist,
-    spx_error_t *error
-);
+spx_validate_result_t spx_validate_ip_in_whitelist(const char *ip, const char *whitelist,
+                                                   spx_error_t *error);
 
 #endif /* SPX_SECURITY_VALIDATION_H_DEFINED */

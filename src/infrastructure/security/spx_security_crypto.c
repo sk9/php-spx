@@ -25,8 +25,8 @@
 /* Constant-time comparison to prevent timing attacks */
 int spx_crypto_compare_constant_time(const void *a, const void *b, size_t len)
 {
-    const unsigned char *aa = (const unsigned char *)a;
-    const unsigned char *bb = (const unsigned char *)b;
+    const unsigned char *aa = (const unsigned char *) a;
+    const unsigned char *bb = (const unsigned char *) b;
     unsigned char result = 0;
     size_t i;
 
@@ -50,7 +50,7 @@ int spx_crypto_compare_strings_constant_time(const char *a, const char *b)
 
     /* Compare lengths in constant time */
     unsigned char length_equal = 0;
-    length_equal = (unsigned char)(len_a ^ len_b);
+    length_equal = (unsigned char) (len_a ^ len_b);
 
     /* Always compare the shorter length to avoid timing leaks */
     size_t compare_len = len_a < len_b ? len_a : len_b;
@@ -69,7 +69,7 @@ int spx_crypto_compare_strings_constant_time(const char *a, const char *b)
         struct timespec ts;
         ts.tv_sec = 0;
         /* Random delay 0-5ms */
-        ts.tv_nsec = ((unsigned long)time(NULL) % 5000) * 1000;
+        ts.tv_nsec = ((unsigned long) time(NULL) % 5000) * 1000;
         nanosleep(&ts, NULL);
     }
 
@@ -92,7 +92,7 @@ int spx_crypto_random_bytes(void *buffer, size_t size)
 
     size_t total_read = 0;
     while (total_read < size) {
-        ssize_t n = read(fd, (unsigned char *)buffer + total_read, size - total_read);
+        ssize_t n = read(fd, (unsigned char *) buffer + total_read, size - total_read);
         if (n <= 0) {
             close(fd);
             return -1;
@@ -104,10 +104,10 @@ int spx_crypto_random_bytes(void *buffer, size_t size)
     return 0;
 #else
     /* Fallback to less secure random for unsupported platforms */
-    srand((unsigned int)time(NULL));
-    unsigned char *buf = (unsigned char *)buffer;
+    srand((unsigned int) time(NULL));
+    unsigned char *buf = (unsigned char *) buffer;
     for (size_t i = 0; i < size; i++) {
-        buf[i] = (unsigned char)(rand() % 256);
+        buf[i] = (unsigned char) (rand() % 256);
     }
     return 0;
 #endif

@@ -44,10 +44,10 @@
 #include "spx_utils.h"
 
 /* New infrastructure modules */
-#include "infrastructure/spx_error.h"
-#include "infrastructure/string/spx_string_safe.h"
 #include "infrastructure/security/spx_security_crypto.h"
 #include "infrastructure/security/spx_security_validation.h"
+#include "infrastructure/spx_error.h"
+#include "infrastructure/string/spx_string_safe.h"
 
 typedef struct {
     void (*init)(void);
@@ -530,7 +530,7 @@ static int check_access(void)
         /* Add random delay to prevent timing analysis */
         struct timespec ts;
         ts.tv_sec = 0;
-        ts.tv_nsec = ((unsigned long)time(NULL) % 5000) * 1000;  /* 0-5ms random delay */
+        ts.tv_nsec = ((unsigned long) time(NULL) % 5000) * 1000; /* 0-5ms random delay */
         nanosleep(&ts, NULL);
 
         /* Don't leak which authentication factor failed */
@@ -838,13 +838,8 @@ static void http_ui_handler_shutdown(void)
 
     /* Safe path validation to prevent path traversal attacks (Issue 1.2) */
     spx_validate_result_t path_result = spx_validate_path(
-        ui_uri,
-        SPX_G(http_ui_assets_dir),
-        SPX_PATH_FLAG_MUST_EXIST | SPX_PATH_FLAG_MUST_BE_FILE,
-        local_file_absolute_path,
-        sizeof(local_file_absolute_path),
-        &error
-    );
+        ui_uri, SPX_G(http_ui_assets_dir), SPX_PATH_FLAG_MUST_EXIST | SPX_PATH_FLAG_MUST_BE_FILE,
+        local_file_absolute_path, sizeof(local_file_absolute_path), &error);
 
     if (path_result != SPX_VALIDATE_OK) {
         if (path_result == SPX_VALIDATE_PATH_TRAVERSAL) {
@@ -1050,7 +1045,7 @@ static int http_ui_handler_output_file(const char *file_name)
     }
 
     rewind(fp);
-    spx_php_output_add_header_linef("Content-Length: %lld", (long long)file_size);
+    spx_php_output_add_header_linef("Content-Length: %lld", (long long) file_size);
 
     spx_php_output_send_headers();
 

@@ -35,10 +35,10 @@
 #include "spx_utils.h"
 
 /* Infrastructure modules */
-#include "infrastructure/spx_error.h"
-#include "infrastructure/string/spx_string_safe.h"
 #include "infrastructure/memory/spx_alloc_safe.h"
 #include "infrastructure/security/spx_security_validation.h"
+#include "infrastructure/spx_error.h"
+#include "infrastructure/string/spx_string_safe.h"
 
 #define BUFFER_CAPACITY 16384
 
@@ -150,7 +150,8 @@ char *spx_reporter_full_build_file_name(const char *data_dir, const char *key, c
     spx_error_t error = SPX_ERROR_INIT();
 
     /* Build relative path with suffix */
-    if (spx_string_format_safe(relative_path, sizeof(relative_path), &error, "%s.txt.gz", key) < 0) {
+    if (spx_string_format_safe(relative_path, sizeof(relative_path), &error, "%s.txt.gz", key) <
+        0) {
         spx_error_log(&error);
         return NULL;
     }
@@ -226,11 +227,8 @@ void spx_reporter_full_set_custom_metadata_str(const spx_profiler_reporter_t *ba
 
     /* Use safe strdup with error handling */
     spx_error_t error = SPX_ERROR_INIT();
-    reporter->metadata->custom_metadata_str = spx_strdup_checked(
-        custom_metadata_str,
-        "custom_metadata_str",
-        &error
-    );
+    reporter->metadata->custom_metadata_str =
+        spx_strdup_checked(custom_metadata_str, "custom_metadata_str", &error);
 
     if (!reporter->metadata->custom_metadata_str) {
         spx_error_log(&error);

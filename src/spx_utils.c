@@ -73,7 +73,7 @@ int spx_utils_ip_match(const char *ip_address_str, const char *target)
     }
 
     /* Parse subnet mask bits (e.g., "24" from "/24") */
-    char target_mask_str[4];  /* Max 2 digits + null terminator */
+    char target_mask_str[4]; /* Max 2 digits + null terminator */
     size_t mask_len = strlen(slash_ptr + 1);
 
     if (mask_len >= sizeof(target_mask_str)) {

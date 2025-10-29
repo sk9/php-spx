@@ -67,17 +67,10 @@ typedef struct {
 /* Error construction */
 #define SPX_ERROR_INIT() ((spx_error_t){SPX_ERR_NONE, {0}, NULL, 0, NULL})
 
-void spx_error_set(
-    spx_error_t *error,
-    spx_error_code_t code,
-    const char *file,
-    int line,
-    const char *function,
-    const char *format,
-    ...
-);
+void spx_error_set(spx_error_t *error, spx_error_code_t code, const char *file, int line,
+                   const char *function, const char *format, ...);
 
-#define SPX_ERROR_SET(err, code, ...) \
+#define SPX_ERROR_SET(err, code, ...)                                                              \
     spx_error_set(err, code, __FILE__, __LINE__, __func__, __VA_ARGS__)
 
 /* Error checking */
