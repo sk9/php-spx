@@ -216,7 +216,7 @@ static void source_data_to_config(const source_data_t *source_data, spx_config_t
         long value;
 
         if (spx_parse_long(source_data->sampling_period_str, &value, 0, 10000000, &error) ==
-            SPX_PARSE_OK) {
+            SPX_PARSE_SUCCESS) {
             config->sampling_period = (size_t) value;
         } else {
             spx_php_log_notice("Invalid sampling_period value: %s",
@@ -234,7 +234,8 @@ static void source_data_to_config(const source_data_t *source_data, spx_config_t
         spx_error_t error = SPX_ERROR_INIT();
         long value;
 
-        if (spx_parse_long(source_data->depth_str, &value, 0, 100000, &error) == SPX_PARSE_OK) {
+        if (spx_parse_long(source_data->depth_str, &value, 0, 100000, &error) ==
+            SPX_PARSE_SUCCESS) {
             config->max_depth = (size_t) value;
         } else {
             spx_php_log_notice("Invalid max_depth value: %s", source_data->depth_str);
@@ -283,7 +284,8 @@ static void source_data_to_config(const source_data_t *source_data, spx_config_t
         spx_error_t error = SPX_ERROR_INIT();
         long value;
 
-        if (spx_parse_long(source_data->fp_limit_str, &value, 0, 1000000, &error) == SPX_PARSE_OK) {
+        if (spx_parse_long(source_data->fp_limit_str, &value, 0, 1000000, &error) ==
+            SPX_PARSE_SUCCESS) {
             config->fp_limit = (size_t) value;
         } else {
             spx_php_log_notice("Invalid fp_limit value: %s", source_data->fp_limit_str);

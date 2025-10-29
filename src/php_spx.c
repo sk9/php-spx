@@ -16,6 +16,7 @@
  */
 
 #include <stdio.h>
+#include <time.h>
 
 #if !defined(ZTS) && !defined(_WIN32)
 #define USE_SIGNAL
@@ -841,8 +842,8 @@ static void http_ui_handler_shutdown(void)
         ui_uri, SPX_G(http_ui_assets_dir), SPX_PATH_FLAG_MUST_EXIST | SPX_PATH_FLAG_MUST_BE_FILE,
         local_file_absolute_path, sizeof(local_file_absolute_path), &error);
 
-    if (path_result != SPX_VALIDATE_OK) {
-        if (path_result == SPX_VALIDATE_PATH_TRAVERSAL) {
+    if (path_result != SPX_VALIDATE_SUCCESS) {
+        if (error.code == SPX_ERR_PATH_TRAVERSAL) {
             spx_php_log_notice("Path traversal attempt detected: %s", ui_uri);
         }
         spx_error_log(&error);

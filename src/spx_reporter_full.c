@@ -134,7 +134,8 @@ char *spx_reporter_full_build_metadata_file_name(const char *data_dir, const cha
     }
 
     /* Validate path to prevent traversal attacks */
-    if (spx_validate_path(relative_path, data_dir, 0, file_name, size, &error) != SPX_VALIDATE_OK) {
+    if (spx_validate_path(relative_path, data_dir, 0, file_name, size, &error) !=
+        SPX_VALIDATE_SUCCESS) {
         spx_error_log(&error);
         return NULL;
     }
@@ -157,7 +158,8 @@ char *spx_reporter_full_build_file_name(const char *data_dir, const char *key, c
     }
 
     /* Validate path to prevent traversal attacks */
-    if (spx_validate_path(relative_path, data_dir, 0, file_name, size, &error) != SPX_VALIDATE_OK) {
+    if (spx_validate_path(relative_path, data_dir, 0, file_name, size, &error) !=
+        SPX_VALIDATE_SUCCESS) {
         spx_error_log(&error);
         return NULL;
     }
