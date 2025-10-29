@@ -20,6 +20,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -63,7 +64,8 @@ spx_validate_result_t spx_validate_string(const char *str,
 
     /* Validate character set if specified */
     if (constraints->allowed_charset) {
-        for (size_t i = 0; i < len; i++) {
+        size_t i;
+        for (i = 0; i < len; i++) {
             if (!strchr(constraints->allowed_charset, str[i])) {
                 SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT,
                               "Invalid character at position %zu: 0x%02x", i,

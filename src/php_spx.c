@@ -26,8 +26,8 @@
 #include <signal.h>
 #endif
 
-#include "ext/standard/info.h"
 #include "php_spx.h"
+#include "ext/standard/info.h"
 
 #include "spx_call_stack.h"
 #include "spx_config.h"
@@ -839,7 +839,7 @@ static void http_ui_handler_shutdown(void)
 
     /* Safe path validation to prevent path traversal attacks (Issue 1.2) */
     spx_validate_result_t path_result = spx_validate_path(
-        ui_uri, SPX_G(http_ui_assets_dir), SPX_PATH_FLAG_MUST_EXIST | SPX_PATH_FLAG_MUST_BE_FILE,
+        ui_uri, SPX_G(http_ui_assets_dir), SPX_PATH_MUST_EXIST | SPX_PATH_MUST_BE_FILE,
         local_file_absolute_path, sizeof(local_file_absolute_path), &error);
 
     if (path_result != SPX_VALIDATE_SUCCESS) {

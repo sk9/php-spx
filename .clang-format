@@ -10,3 +10,4 @@ AllowShortLoopsOnASingleLine: false
 IndentCaseLabels: false
 PointerAlignment: Right
 SpaceAfterCStyleCast: true
+SortIncludes: false
