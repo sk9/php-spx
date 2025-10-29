@@ -18,6 +18,7 @@
 #include "spx_security_crypto.h"
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -104,9 +105,10 @@ int spx_crypto_random_bytes(void *buffer, size_t size)
     return 0;
 #else
     /* Fallback to less secure random for unsupported platforms */
+    size_t i;
     srand((unsigned int) time(NULL));
     unsigned char *buf = (unsigned char *) buffer;
-    for (size_t i = 0; i < size; i++) {
+    for (i = 0; i < size; i++) {
         buf[i] = (unsigned char) (rand() % 256);
     }
     return 0;
@@ -131,8 +133,11 @@ int spx_crypto_generate_hex_key(char *buffer, size_t size, size_t key_bytes)
     }
 
     /* Convert to hex */
-    for (size_t i = 0; i < key_bytes; i++) {
-        snprintf(buffer + (i * 2), 3, "%02x", random_bytes[i]);
+    {
+        size_t i;
+        for (i = 0; i < key_bytes; i++) {
+            snprintf(buffer + (i * 2), 3, "%02x", random_bytes[i]);
+        }
     }
     buffer[key_bytes * 2] = '\0';
 
