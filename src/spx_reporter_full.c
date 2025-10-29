@@ -123,6 +123,11 @@ size_t spx_reporter_full_metadata_list_files(const char *data_dir,
 char *spx_reporter_full_build_metadata_file_name(const char *data_dir, const char *key,
                                                  char *file_name, size_t size)
 {
+    /* Defensive NULL checks */
+    if (!data_dir || !key || !file_name) {
+        return NULL;
+    }
+
     /* Safe path construction and validation (Issue 1.2) */
     char relative_path[PATH_MAX];
     spx_error_t error = SPX_ERROR_INIT();
@@ -146,6 +151,11 @@ char *spx_reporter_full_build_metadata_file_name(const char *data_dir, const cha
 char *spx_reporter_full_build_file_name(const char *data_dir, const char *key, char *file_name,
                                         size_t size)
 {
+    /* Defensive NULL checks */
+    if (!data_dir || !key || !file_name) {
+        return NULL;
+    }
+
     /* Safe path construction and validation (Issue 1.2) */
     char relative_path[PATH_MAX];
     spx_error_t error = SPX_ERROR_INIT();
@@ -220,6 +230,11 @@ error:
 void spx_reporter_full_set_custom_metadata_str(const spx_profiler_reporter_t *base_reporter,
                                                const char *custom_metadata_str)
 {
+    /* Defensive NULL checks */
+    if (!base_reporter || !custom_metadata_str) {
+        return;
+    }
+
     const full_reporter_t *reporter = (const full_reporter_t *) base_reporter;
 
     /* Fix memory leak (Issue 2.1): Free old value before allocating new one */
