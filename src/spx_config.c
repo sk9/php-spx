@@ -25,6 +25,10 @@
 #include "spx_php.h"
 #include "spx_utils.h"
 
+/* Infrastructure modules */
+#include "infrastructure/spx_error.h"
+#include "infrastructure/security/spx_security_validation.h"
+
 typedef struct {
     const char *enabled_str;
     const char *key_str;
@@ -207,7 +211,18 @@ static void source_data_to_config(const source_data_t *source_data, spx_config_t
     }
 
     if (source_data->sampling_period_str) {
-        config->sampling_period = atoi(source_data->sampling_period_str);
+        /* Safe integer parsing with bounds checking (Issue 1.4) */
+        spx_error_t error = SPX_ERROR_INIT();
+        long value;
+
+        if (spx_parse_long(source_data->sampling_period_str, &value, 0, 10000000, &error)
+            == SPX_PARSE_OK) {
+            config->sampling_period = (size_t)value;
+        } else {
+            spx_php_log_notice("Invalid sampling_period value: %s",
+                              source_data->sampling_period_str);
+            spx_error_log(&error);
+        }
     }
 
     if (source_data->builtins_str) {
@@ -215,7 +230,17 @@ static void source_data_to_config(const source_data_t *source_data, spx_config_t
     }
 
     if (source_data->depth_str) {
-        config->max_depth = atoi(source_data->depth_str);
+        /* Safe integer parsing with bounds checking (Issue 1.4) */
+        spx_error_t error = SPX_ERROR_INIT();
+        long value;
+
+        if (spx_parse_long(source_data->depth_str, &value, 0, 100000, &error)
+            == SPX_PARSE_OK) {
+            config->max_depth = (size_t)value;
+        } else {
+            spx_php_log_notice("Invalid max_depth value: %s", source_data->depth_str);
+            spx_error_log(&error);
+        }
     }
 
     if (source_data->metrics_str) {
@@ -255,7 +280,17 @@ static void source_data_to_config(const source_data_t *source_data, spx_config_t
     }
 
     if (source_data->fp_limit_str) {
-        config->fp_limit = atoi(source_data->fp_limit_str);
+        /* Safe integer parsing with bounds checking (Issue 1.4) */
+        spx_error_t error = SPX_ERROR_INIT();
+        long value;
+
+        if (spx_parse_long(source_data->fp_limit_str, &value, 0, 1000000, &error)
+            == SPX_PARSE_OK) {
+            config->fp_limit = (size_t)value;
+        } else {
+            spx_php_log_notice("Invalid fp_limit value: %s", source_data->fp_limit_str);
+            spx_error_log(&error);
+        }
     }
 
     if (source_data->fp_live_str) {

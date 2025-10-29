@@ -43,6 +43,12 @@
 #include "spx_thread.h"
 #include "spx_utils.h"
 
+/* New infrastructure modules */
+#include "infrastructure/spx_error.h"
+#include "infrastructure/string/spx_string_safe.h"
+#include "infrastructure/security/spx_security_crypto.h"
+#include "infrastructure/security/spx_security_validation.h"
+
 typedef struct {
     void (*init)(void);
     void (*shutdown)(void);
@@ -519,10 +525,16 @@ static int check_access(void)
         return 0;
     }
 
-    if (0 != strcmp(SPX_G(http_key), context.config.key)) {
-        /* server / client key mismatch -> not granted */
-        spx_php_log_notice("access not granted: server & client (\"%s\") key mismatch",
-                           context.config.key);
+    /* Use constant-time comparison to prevent timing attacks (Issue 2.5) */
+    if (spx_crypto_compare_strings_constant_time(SPX_G(http_key), context.config.key) != 0) {
+        /* Add random delay to prevent timing analysis */
+        struct timespec ts;
+        ts.tv_sec = 0;
+        ts.tv_nsec = ((unsigned long)time(NULL) % 5000) * 1000;  /* 0-5ms random delay */
+        nanosleep(&ts, NULL);
+
+        /* Don't leak which authentication factor failed */
+        spx_php_log_notice("access not granted: authentication failed");
 
         return 0;
     }
@@ -822,10 +834,23 @@ static void http_ui_handler_shutdown(void)
     }
 
     char local_file_absolute_path[PATH_MAX];
+    spx_error_t error = SPX_ERROR_INIT();
 
-    if (spx_utils_resolve_confined_file_absolute_path(SPX_G(http_ui_assets_dir), ui_uri, NULL,
-                                                      local_file_absolute_path,
-                                                      sizeof(local_file_absolute_path)) == NULL) {
+    /* Safe path validation to prevent path traversal attacks (Issue 1.2) */
+    spx_validate_result_t path_result = spx_validate_path(
+        ui_uri,
+        SPX_G(http_ui_assets_dir),
+        SPX_PATH_FLAG_MUST_EXIST | SPX_PATH_FLAG_MUST_BE_FILE,
+        local_file_absolute_path,
+        sizeof(local_file_absolute_path),
+        &error
+    );
+
+    if (path_result != SPX_VALIDATE_OK) {
+        if (path_result == SPX_VALIDATE_PATH_TRAVERSAL) {
+            spx_php_log_notice("Path traversal attempt detected: %s", ui_uri);
+        }
+        spx_error_log(&error);
         goto error_404;
     }
 
@@ -960,23 +985,49 @@ static int http_ui_handler_output_file(const char *file_name)
         return -1;
     }
 
-    char suffix[32];
-    int suffix_offset = strlen(file_name) - (sizeof(suffix) - 1);
-    snprintf(suffix, sizeof(suffix), "%s", file_name + (suffix_offset < 0 ? 0 : suffix_offset));
+    /* SECURITY FIX (Issue 1.1): Use larger buffer and safe string operations */
+    char suffix[PATH_MAX];
+    spx_error_t error = SPX_ERROR_INIT();
 
-    const int compressed = spx_utils_str_ends_with(suffix, ".gz");
-    if (compressed) {
-        *strrchr(suffix, '.') = 0;
+    /* Safely get the filename length */
+    size_t fn_len = spx_string_length_safe(file_name, PATH_MAX);
+    if (fn_len == 0 || fn_len >= PATH_MAX) {
+        fclose(fp);
+        return -1;
     }
 
+    /* Extract suffix (last 255 chars or full filename if shorter) */
+    size_t suffix_start = 0;
+    if (fn_len > sizeof(suffix) - 1) {
+        suffix_start = fn_len - (sizeof(suffix) - 1);
+    }
+
+    /* Use safe string copy - always null-terminates */
+    spx_string_copy_safe(suffix, sizeof(suffix), file_name + suffix_start, &error);
+    if (spx_error_has_error(&error)) {
+        fclose(fp);
+        spx_error_log(&error);
+        return -1;
+    }
+
+    /* Check for .gz compression */
+    const int compressed = spx_string_ends_with(suffix, ".gz");
+    if (compressed) {
+        char *gz_ext = strrchr(suffix, '.');
+        if (gz_ext) {
+            *gz_ext = '\0';
+        }
+    }
+
+    /* Determine content type from extension */
     const char *content_type = "application/octet-stream";
-    if (spx_utils_str_ends_with(suffix, ".html")) {
+    if (spx_string_ends_with(suffix, ".html")) {
         content_type = "text/html; charset=utf-8";
-    } else if (spx_utils_str_ends_with(suffix, ".css")) {
+    } else if (spx_string_ends_with(suffix, ".css")) {
         content_type = "text/css";
-    } else if (spx_utils_str_ends_with(suffix, ".js")) {
+    } else if (spx_string_ends_with(suffix, ".js")) {
         content_type = "application/javascript";
-    } else if (spx_utils_str_ends_with(suffix, ".json")) {
+    } else if (spx_string_ends_with(suffix, ".json")) {
         content_type = "application/json";
     }
 
@@ -986,9 +1037,20 @@ static int http_ui_handler_output_file(const char *file_name)
         spx_php_output_add_header_line("Content-Encoding: gzip");
     }
 
-    fseek(fp, 0L, SEEK_END);
-    spx_php_output_add_header_linef("Content-Length: %ld", ftell(fp));
+    /* SECURITY FIX (Issue 3.9): Use ftello for large files */
+    if (fseek(fp, 0L, SEEK_END) != 0) {
+        fclose(fp);
+        return -1;
+    }
+
+    off_t file_size = ftello(fp);
+    if (file_size < 0) {
+        fclose(fp);
+        return -1;
+    }
+
     rewind(fp);
+    spx_php_output_add_header_linef("Content-Length: %lld", (long long)file_size);
 
     spx_php_output_send_headers();
 

@@ -25,15 +25,28 @@
 #define PATH_MAX MAXPATHLEN
 #endif
 
+/* Safe tokenization macro with overflow detection (Issue 2.4) */
 #define SPX_UTILS_TOKENIZE_STRING(str, delim, token, size, block)                                  \
     do {                                                                                           \
         const char *c_ = str;                                                                      \
         const char delim_ = delim;                                                                 \
         size_t i_ = 0;                                                                             \
+        int truncated_ = 0;                                                                        \
         char token[size] = {0};                                                                    \
         while (1) {                                                                                \
             if (*c_ == 0 || *c_ == delim_) {                                                       \
-                token[i_] = 0;                                                                     \
+                /* Ensure null termination */                                                      \
+                if (i_ < sizeof(token)) {                                                          \
+                    token[i_] = 0;                                                                 \
+                } else {                                                                           \
+                    token[sizeof(token) - 1] = 0;                                                  \
+                }                                                                                  \
+                                                                                                   \
+                /* Log warning if token was truncated */                                           \
+                if (truncated_) {                                                                  \
+                    spx_php_log_notice("Token truncated to %zu bytes: %.32s...",                   \
+                                      sizeof(token) - 1, token);                                   \
+                }                                                                                  \
                                                                                                    \
                 do {                                                                               \
                     block                                                                          \
@@ -44,9 +57,13 @@
                 }                                                                                  \
                                                                                                    \
                 i_ = 0;                                                                            \
+                truncated_ = 0;                                                                    \
             } else if (i_ < sizeof(token) - 1) {                                                   \
                 token[i_] = *c_;                                                                   \
                 i_++;                                                                              \
+            } else {                                                                               \
+                /* Token too long - mark as truncated */                                           \
+                truncated_ = 1;                                                                    \
             }                                                                                      \
                                                                                                    \
             c_++;                                                                                  \
