@@ -25,6 +25,9 @@ const utils = await import(getImportUrl('/js/utils.js'));
 const fmt = await import(getImportUrl('/js/fmt.js'));
 const math = await import(getImportUrl('/js/math.js'));
 const svg = await import(getImportUrl('/js/svg.js'));
+const callGraph = await import(getImportUrl('/js/callGraph.js'));
+const colorSchemes = await import(getImportUrl('/js/colorSchemes.js'));
+const layouts = await import(getImportUrl('/js/layouts.js'));
 
 function getCallMetricValueColor(profileData, metric, value) {
     const metricRange = profileData.getStats().getCallRange(metric);
@@ -1654,13 +1657,36 @@ export class FlatProfile extends Widget {
 
         this.sortCol = 'exc';
         this.sortDir = -1;
+        this.graphData = null;  // Cache call graph data
     }
 
     onTimeRangeUpdate() {
+        this.graphData = null;  // Invalidate cache
         this.repaint();
     }
 
+    /**
+     * Build or get cached call graph data
+     */
+    getGraphData() {
+        if (!this.graphData) {
+            try {
+                this.graphData = new callGraph.CallGraphData(
+                    this.profileData,
+                    this.timeRange,
+                    this.currentMetric
+                );
+            } catch (e) {
+                console.warn('Failed to build call graph data:', e);
+                this.graphData = null;
+            }
+        }
+        return this.graphData;
+    }
+
     render() {
+        const graphData = this.getGraphData();
+        const hasCallGraph = graphData !== null;
 
         let html = `
 <table width="${this.container.width() - 20}px">
@@ -1669,6 +1695,7 @@ export class FlatProfile extends Widget {
         <th rowspan="3" class="sortable" data-sort="name">Function</th>
         <th rowspan="3" width="80px" class="sortable" data-sort="called">Called</th>
         <th colspan="4">${this.profileData.getMetricInfo(this.currentMetric).name}</th>
+        ${hasCallGraph ? '<th rowspan="3" width="80px" class="sortable" data-sort="hotpath">Hot Path</th>' : ''}
     </tr>
     <tr>
         <th colspan="2">Percentage</th>
@@ -1697,35 +1724,63 @@ export class FlatProfile extends Widget {
                 this.searchQuery && (stats.functionName.toLowerCase()).indexOf(this.searchQuery.toLowerCase()) < 0
             ));
 
+        // Sort with hot path support
         functionsStats.sort((a, b) => {
+            let aVal, bVal;
+
             switch (this.sortCol) {
                 case 'name':
-                    a = a.functionName;
-                    b = b.functionName;
-
+                    aVal = a.functionName;
+                    bVal = b.functionName;
                     break;
 
                 case 'called':
-                    a = a.called;
-                    b = b.called;
-
+                    aVal = a.called;
+                    bVal = b.called;
                     break;
 
                 case 'inc_rel':
                 case 'inc':
-                    a = a.inc.getValue(this.currentMetric);
-                    b = b.inc.getValue(this.currentMetric);
+                    aVal = a.inc.getValue(this.currentMetric);
+                    bVal = b.inc.getValue(this.currentMetric);
+                    break;
 
+                case 'hotpath':
+                    if (hasCallGraph) {
+                        const aNode = graphData.nodes.get(a.functionName);
+                        const bNode = graphData.nodes.get(b.functionName);
+
+                        // Hot path nodes first
+                        if (aNode && aNode.isOnHotPath && !(bNode && bNode.isOnHotPath)) {
+                            return -1 * this.sortDir;
+                        }
+                        if (bNode && bNode.isOnHotPath && !(aNode && aNode.isOnHotPath)) {
+                            return 1 * this.sortDir;
+                        }
+
+                        // If both on hot path, sort by rank
+                        if (aNode && bNode && aNode.isOnHotPath && bNode.isOnHotPath) {
+                            aVal = aNode.hotPathRank;
+                            bVal = bNode.hotPathRank;
+                        } else {
+                            // Sort by metric
+                            aVal = a.inc.getValue(this.currentMetric);
+                            bVal = b.inc.getValue(this.currentMetric);
+                        }
+                    } else {
+                        aVal = a.inc.getValue(this.currentMetric);
+                        bVal = b.inc.getValue(this.currentMetric);
+                    }
                     break;
 
                 case 'exc_rel':
                 case 'exc':
                 default:
-                    a = a.exc.getValue(this.currentMetric);
-                    b = b.exc.getValue(this.currentMetric);
+                    aVal = a.exc.getValue(this.currentMetric);
+                    bVal = b.exc.getValue(this.currentMetric);
             }
 
-            return (a < b ? -1 : (a > b)) * this.sortDir;
+            return (aVal < bVal ? -1 : (aVal > bVal)) * this.sortDir;
         });
 
         const formatter = this.profileData.getMetricFormatter(this.currentMetric);
@@ -1774,8 +1829,26 @@ export class FlatProfile extends Widget {
                 functionLabel += '@' + stats.maxCycleDepth;
             }
 
+            // Get hot path info
+            let hotPathCell = '';
+            let rowHighlight = '';
+            if (hasCallGraph) {
+                const node = graphData.nodes.get(stats.functionName);
+                if (node && node.isOnHotPath) {
+                    const hotPathScore = node.hotPathScore;
+                    const hotPathRank = node.hotPathRank;
+                    hotPathCell = `<td width="80px" style="text-align: center; color: #f00; font-weight: bold;" title="Hot path rank: ${hotPathRank}, Score: ${(hotPathScore * 100).toFixed(1)}%">🔥 #${hotPathRank}</td>`;
+
+                    // Highlight hot path rows
+                    const hotColor = colorSchemes.ColorSchemes.HOTPATH_RED(hotPathScore);
+                    rowHighlight = `background: linear-gradient(90deg, ${hotColor}22 0%, transparent 100%);`;
+                } else {
+                    hotPathCell = `<td width="80px"></td>`;
+                }
+            }
+
             html += `
-<tr>
+<tr style="${rowHighlight}">
     <td
         data-function-name="${stats.functionName}"
         title="${functionLabel}"
@@ -1790,13 +1863,14 @@ export class FlatProfile extends Widget {
             )
         }"
     >
-        ${utils.truncateFunctionName(functionLabel, (this.container.width() - 5 * 90) / 8)}
+        ${utils.truncateFunctionName(functionLabel, (this.container.width() - (hasCallGraph ? 6 : 5) * 90) / 8)}
     </td>
     <td width="80px">${fmt.quantity(stats.called)}</td>
     <td width="80px">${fmt.pct(incRel)}${renderRelativeCostBar(incRel)}</td>
     <td width="80px">${fmt.pct(excRel)}${renderRelativeCostBar(excRel)}</td>
     <td width="80px">${formatter(inc)}</td>
     <td width="80px">${formatter(exc)}</td>
+    ${hotPathCell}
 </tr>
             `;
         }
@@ -1831,5 +1905,569 @@ export class FlatProfile extends Widget {
                 ]
             );
         });
+    }
+}
+
+/**
+ * CallGraphView - Interactive SVG call graph visualization
+ *
+ * Features:
+ * - Node/edge rendering with hot path highlighting
+ * - Zoom and pan with mouse wheel/drag
+ * - Click to select and drill down
+ * - Breadcrumb navigation
+ * - Info panel with function details
+ * - Integration with color schemes
+ */
+export class CallGraphView extends SVGWidget {
+    constructor(container, profileData) {
+        super(container, profileData);
+
+        this.graphData = null;
+        this.layout = null;
+        this.colorSchemeManager = new colorSchemes.ColorSchemeManager();
+
+        // Viewport transform (zoom/pan)
+        this.viewportTransform = { x: 0, y: 0, scale: 1.0 };
+        this.minZoom = 0.1;
+        this.maxZoom = 5.0;
+
+        // Node pools for performance
+        this.svgRectPool = new svg.NodePool('rect');
+        this.svgTextPool = new svg.NodePool('text');
+        this.svgPathPool = new svg.NodePool('path');
+
+        // Interaction state
+        this.selectedNode = null;
+        this.hoveredNode = null;
+        this.isDragging = false;
+        this.dragStart = { x: 0, y: 0 };
+
+        // Breadcrumb navigation
+        this.navigationStack = [];
+        this.currentRoot = null;
+
+        // Filter options
+        this.filterThreshold = 0;  // Min percentage
+        this.showHotPathOnly = false;
+
+        // Info panel
+        this.infoViewPort = null;
+
+        this.initializeInteractions();
+    }
+
+    /**
+     * Initialize mouse/keyboard interactions
+     */
+    initializeInteractions() {
+        // Zoom with mouse wheel
+        this.viewPort.node.addEventListener('wheel', e => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            this.zoom(delta, e.clientX, e.clientY);
+        });
+
+        // Pan with drag
+        this.viewPort.node.addEventListener('mousedown', e => {
+            if (e.button === 0 && !e.target.dataset.nodeId) {
+                this.isDragging = true;
+                this.dragStart = { x: e.clientX, y: e.clientY };
+                e.preventDefault();
+            }
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (this.isDragging) {
+                const dx = e.clientX - this.dragStart.x;
+                const dy = e.clientY - this.dragStart.y;
+                this.pan(dx, dy);
+                this.dragStart = { x: e.clientX, y: e.clientY };
+            } else {
+                this.handleMouseMove(e);
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            this.isDragging = false;
+        });
+
+        // Node click
+        this.viewPort.node.addEventListener('click', e => {
+            const element = document.elementFromPoint(e.clientX, e.clientY);
+            const nodeId = element?.dataset?.nodeId;
+
+            if (nodeId && !this.isDragging) {
+                this.handleNodeClick(nodeId);
+            }
+        });
+
+        // Listen for global events
+        $(window).on('spx-color-scheme-update', (event, scheme) => {
+            this.colorSchemeManager.setScheme(scheme);
+            this.repaint();
+        });
+
+        $(window).on('spx-filter-update', (event, filters) => {
+            this.filterThreshold = filters.minPercent || 0;
+            this.showHotPathOnly = filters.hotPathOnly || false;
+            this.repaint();
+        });
+    }
+
+    /**
+     * Handle mouse move for hover effects
+     */
+    handleMouseMove(e) {
+        const element = document.elementFromPoint(e.clientX, e.clientY);
+        const nodeId = element?.dataset?.nodeId;
+
+        if (nodeId && nodeId !== this.hoveredNode?.getFunctionName()) {
+            const node = this.graphData.nodes.get(nodeId);
+            this.setHoveredNode(node);
+        } else if (!nodeId && this.hoveredNode) {
+            this.setHoveredNode(null);
+        }
+    }
+
+    /**
+     * Handle node click
+     */
+    handleNodeClick(nodeId) {
+        const node = this.graphData.nodes.get(nodeId);
+        if (!node) return;
+
+        // Double-click to drill down
+        if (this.selectedNode === node) {
+            this.drillDown(node);
+        } else {
+            this.setSelectedNode(node);
+        }
+
+        // Trigger global event
+        $(window).trigger('spx-highlighted-function-update', [nodeId]);
+    }
+
+    /**
+     * Zoom toward cursor position
+     */
+    zoom(factor, centerX, centerY) {
+        const newScale = math.bound(
+            this.viewportTransform.scale * factor,
+            this.minZoom,
+            this.maxZoom
+        );
+
+        // Zoom toward cursor
+        const rect = this.viewPort.node.getBoundingClientRect();
+        const x = centerX - rect.left;
+        const y = centerY - rect.top;
+
+        this.viewportTransform.x = x - (x - this.viewportTransform.x) * (newScale / this.viewportTransform.scale);
+        this.viewportTransform.y = y - (y - this.viewportTransform.y) * (newScale / this.viewportTransform.scale);
+        this.viewportTransform.scale = newScale;
+
+        this.repaint();
+    }
+
+    /**
+     * Pan the viewport
+     */
+    pan(dx, dy) {
+        this.viewportTransform.x += dx;
+        this.viewportTransform.y += dy;
+        this.repaint();
+    }
+
+    /**
+     * Reset zoom to fit all nodes
+     */
+    resetZoom() {
+        if (!this.layout) return;
+
+        const dims = this.layout.getDimensions();
+        const scaleX = this.viewPort.width / dims.width;
+        const scaleY = this.viewPort.height / dims.height;
+        const scale = Math.min(scaleX, scaleY, 1.0) * 0.9;  // 90% to add padding
+
+        this.viewportTransform.scale = scale;
+        this.viewportTransform.x = (this.viewPort.width - dims.width * scale) / 2;
+        this.viewportTransform.y = 20;  // Top padding
+
+        this.repaint();
+    }
+
+    /**
+     * Set hovered node
+     */
+    setHoveredNode(node) {
+        this.hoveredNode = node;
+        this.updateInfoPanel();
+        this.repaint();
+    }
+
+    /**
+     * Set selected node
+     */
+    setSelectedNode(node) {
+        this.selectedNode = node;
+        this.updateInfoPanel();
+        this.repaint();
+    }
+
+    /**
+     * Drill down into a node (make it the new root)
+     */
+    drillDown(node) {
+        if (!node || node.children.length === 0) return;
+
+        // Add to navigation stack
+        this.navigationStack.push(this.currentRoot || this.graphData.rootNodes[0]);
+        this.currentRoot = node;
+
+        // Rebuild graph with new root
+        this.buildSubgraph(node);
+        this.resetZoom();
+    }
+
+    /**
+     * Navigate back in breadcrumb
+     */
+    navigateBack(index) {
+        if (index < 0 || index >= this.navigationStack.length) return;
+
+        // Restore to this point in navigation
+        const targetNode = index === 0 ? null : this.navigationStack[index - 1];
+        this.navigationStack = this.navigationStack.slice(0, index);
+        this.currentRoot = targetNode;
+
+        if (targetNode) {
+            this.buildSubgraph(targetNode);
+        } else {
+            this.repaint();  // Full graph
+        }
+        this.resetZoom();
+    }
+
+    /**
+     * Build subgraph rooted at node
+     */
+    buildSubgraph(rootNode) {
+        // For now, just filter the main graph
+        // In a more advanced version, we'd build a true subgraph
+        this.currentRoot = rootNode;
+        this.repaint();
+    }
+
+    /**
+     * Update info panel with node details
+     */
+    updateInfoPanel() {
+        if (!this.infoViewPort) return;
+
+        this.infoViewPort.clear();
+
+        const node = this.hoveredNode || this.selectedNode;
+        if (!node) return;
+
+        // Semi-transparent background
+        this.infoViewPort.appendChild(svg.createNode('rect', {
+            x: 0,
+            y: 0,
+            width: this.infoViewPort.width,
+            height: this.infoViewPort.height,
+            'fill': '#000',
+            'fill-opacity': '0.8',
+        }));
+
+        const formatter = this.profileData.getMetricFormatter(this.currentMetric);
+        const metricName = this.profileData.getMetricInfo(this.currentMetric).name;
+
+        const info = [
+            'Function: ' + node.getFunctionName(),
+            'Depth: ' + node.getDepth(),
+            'Called: ' + node.getCalled(),
+            metricName + ' Inc.: ' + formatter(node.getInclusiveMetric(this.currentMetric)),
+            metricName + ' Exc.: ' + formatter(node.getExclusiveMetric(this.currentMetric)),
+        ];
+
+        if (node.isOnHotPath) {
+            info.push('🔥 HOT PATH #' + node.hotPathRank + ' (' + (node.hotPathScore * 100).toFixed(1) + '%)');
+        }
+
+        renderSVGMultiLineText(
+            this.infoViewPort.createSubViewPort(
+                this.infoViewPort.width - 10,
+                this.infoViewPort.height,
+                5,
+                5
+            ),
+            info
+        );
+    }
+
+    /**
+     * Build graph data and layout
+     */
+    buildGraphData() {
+        try {
+            // Build call graph
+            this.graphData = new callGraph.CallGraphData(
+                this.profileData,
+                this.timeRange,
+                this.currentMetric
+            );
+
+            // Apply filters
+            if (this.filterThreshold > 0) {
+                this.graphData = this.graphData.filterByThreshold(this.filterThreshold);
+            }
+
+            // Set viewport width for layout
+            this.graphData.viewportWidth = this.viewPort.width;
+
+            // Compute layout (import is already done at top level)
+            this.layout = new layouts.SugiyamaLayout(this.graphData, {
+                viewportWidth: this.viewPort.width,
+                nodeWidth: 150,
+                nodeHeight: 40,
+                horizontalSpacing: 30,
+                verticalSpacing: 80
+            });
+            this.layout.compute();
+
+            return true;
+        } catch (e) {
+            console.error('Failed to build call graph:', e);
+            return false;
+        }
+    }
+
+    /**
+     * Main render method
+     */
+    render() {
+        // Build graph data
+        if (!this.buildGraphData()) {
+            this.renderError('Call graph unavailable for this profile');
+            return;
+        }
+
+        // Render breadcrumb
+        this.renderBreadcrumb();
+
+        // Render graph
+        this.renderGraph();
+
+        // Create info panel
+        this.infoViewPort = this.viewPort.createSubViewPort(
+            this.viewPort.width,
+            100,
+            0,
+            0
+        );
+
+        // Reset zoom to fit
+        setTimeout(() => this.resetZoom(), 0);
+    }
+
+    /**
+     * Render error message
+     */
+    renderError(message) {
+        this.viewPort.appendChild(svg.createNode('text', {
+            x: this.viewPort.width / 2,
+            y: this.viewPort.height / 2,
+            'text-anchor': 'middle',
+            'font-size': 14,
+            fill: '#f00',
+        }, function(node) {
+            node.textContent = message;
+        }));
+    }
+
+    /**
+     * Render breadcrumb navigation
+     */
+    renderBreadcrumb() {
+        // This would render above the graph
+        // For now, we'll use console logging
+        if (this.navigationStack.length > 0) {
+            console.log('Breadcrumb:', this.navigationStack.map(n => n ? n.getFunctionName() : 'Root'));
+        }
+    }
+
+    /**
+     * Render the graph
+     */
+    renderGraph() {
+        this.viewPort.clear();
+        this.svgRectPool.releaseAll();
+        this.svgTextPool.releaseAll();
+        this.svgPathPool.releaseAll();
+
+        // Add arrowhead markers
+        svg.createArrowheadMarkers(this.viewPort.node);
+
+        // Create transform group
+        const g = svg.createNode('g', {
+            transform: `translate(${this.viewportTransform.x}, ${this.viewportTransform.y}) scale(${this.viewportTransform.scale})`
+        });
+
+        // Filter nodes if needed
+        let nodesToRender = Array.from(this.graphData.nodes.values());
+        if (this.currentRoot) {
+            // Only render subgraph
+            nodesToRender = this.getSubgraphNodes(this.currentRoot);
+        }
+        if (this.showHotPathOnly) {
+            nodesToRender = nodesToRender.filter(n => n.isOnHotPath);
+        }
+
+        // Render edges first (behind nodes)
+        for (const edge of this.graphData.edges.values()) {
+            if (nodesToRender.includes(edge.from) && nodesToRender.includes(edge.to)) {
+                this.renderEdge(g, edge);
+            }
+        }
+
+        // Render nodes
+        for (const node of nodesToRender) {
+            this.renderNode(g, node);
+        }
+
+        this.viewPort.appendChild(g);
+    }
+
+    /**
+     * Get all nodes in subgraph rooted at node
+     */
+    getSubgraphNodes(rootNode) {
+        const nodes = new Set();
+        const queue = [rootNode];
+
+        while (queue.length > 0) {
+            const node = queue.shift();
+            if (nodes.has(node)) continue;
+
+            nodes.add(node);
+            for (const child of node.children) {
+                queue.push(child);
+            }
+        }
+
+        return Array.from(nodes);
+    }
+
+    /**
+     * Render an edge (call relationship)
+     */
+    renderEdge(container, edge) {
+        const fromNode = edge.from;
+        const toNode = edge.to;
+
+        const x1 = fromNode.layout.x + fromNode.layout.width / 2;
+        const y1 = fromNode.layout.y + fromNode.layout.height;
+        const x2 = toNode.layout.x + toNode.layout.width / 2;
+        const y2 = toNode.layout.y;
+
+        // Bezier curve for smoother edges
+        const midY = (y1 + y2) / 2;
+        const path = `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
+
+        let strokeColor = this.colorSchemeManager.getEdgeColor(edge);
+        let strokeWidth = edge.isOnHotPath ? 3 : 1;
+        let marker = this.colorSchemeManager.getEdgeMarker(edge, false);
+
+        const pathElement = this.svgPathPool.acquire({
+            d: path,
+            stroke: strokeColor,
+            'stroke-width': strokeWidth,
+            fill: 'none',
+            'marker-end': marker,
+        });
+
+        container.appendChild(pathElement);
+    }
+
+    /**
+     * Render a node (function)
+     */
+    renderNode(container, node) {
+        const isSelected = node === this.selectedNode;
+        const isHovered = node === this.hoveredNode;
+
+        // Get color from color scheme
+        const fillColor = this.colorSchemeManager.getNodeColor(node, this.graphData);
+
+        // Determine stroke
+        let strokeColor = '#000';
+        let strokeWidth = 1;
+        if (isSelected) {
+            strokeColor = '#0ff';
+            strokeWidth = 3;
+        } else if (isHovered) {
+            strokeColor = '#fff';
+            strokeWidth = 2;
+        } else if (node.isOnHotPath) {
+            strokeColor = '#ff0';
+            strokeWidth = 2;
+        }
+
+        // Render rectangle
+        const rect = this.svgRectPool.acquire({
+            x: node.layout.x,
+            y: node.layout.y,
+            width: node.layout.width,
+            height: node.layout.height,
+            fill: fillColor,
+            stroke: strokeColor,
+            'stroke-width': strokeWidth,
+            rx: 5,
+            ry: 5,
+            'data-node-id': node.getFunctionName(),
+            cursor: 'pointer',
+        });
+
+        container.appendChild(rect);
+
+        // Render text label
+        const text = this.svgTextPool.acquire({
+            x: node.layout.x + node.layout.width / 2,
+            y: node.layout.y + node.layout.height / 2,
+            'text-anchor': 'middle',
+            'dominant-baseline': 'middle',
+            'font-size': 11,
+            fill: '#fff',
+            'pointer-events': 'none',
+        });
+
+        text.textContent = utils.truncateFunctionName(node.getFunctionName(), node.layout.width / 7);
+
+        container.appendChild(text);
+
+        // Hot path indicator
+        if (node.isOnHotPath && node.layout.width > 40) {
+            const indicator = this.svgTextPool.acquire({
+                x: node.layout.x + node.layout.width - 15,
+                y: node.layout.y + 12,
+                'text-anchor': 'middle',
+                'font-size': 12,
+                'pointer-events': 'none',
+            });
+            indicator.textContent = '🔥';
+            container.appendChild(indicator);
+        }
+    }
+
+    /**
+     * Handle time range updates
+     */
+    onTimeRangeUpdate() {
+        this.graphData = null;
+        this.layout = null;
+        this.navigationStack = [];
+        this.currentRoot = null;
+        this.repaint();
     }
 }

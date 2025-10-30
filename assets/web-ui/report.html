@@ -36,6 +36,36 @@
             </div>
             <div id="color-scale" class="widget" style="flex: 1 1 150px;"></div>
         </div>
+        <div style="flex: 0 0 24px; display: flex; flex-direction: row; gap: 10px; padding: 5px;">
+            <label style="display: flex; align-items: center; gap: 5px;">
+                <span>Color Scheme:</span>
+                <select id="color-scheme-selector" style="padding: 2px;">
+                    <option value="category">Category</option>
+                    <option value="category-hot">Category + Hot Path</option>
+                    <option value="hotpath">Hot Path (Red)</option>
+                    <option value="gradient">Temperature (Blue-Red)</option>
+                    <option value="flame">Flame (Classic)</option>
+                    <option value="depth">Depth</option>
+                    <option value="calls">Calls Heatmap</option>
+                    <option value="memory">Memory</option>
+                </select>
+            </label>
+            <label style="display: flex; align-items: center; gap: 5px;">
+                <span>Min %:</span>
+                <input type="number" id="filter-min-percent" value="0" min="0" max="100" step="0.1" style="width: 60px; padding: 2px;">
+            </label>
+            <label style="display: flex; align-items: center; gap: 5px;">
+                <span>Hot Path Only:</span>
+                <input type="checkbox" id="filter-hotpath-only">
+            </label>
+            <label style="display: flex; align-items: center; gap: 5px;">
+                <span>View Mode:</span>
+                <select id="view-mode-selector" style="padding: 2px;">
+                    <option value="flamegraph" selected>Flame Graph</option>
+                    <option value="callgraph">Call Graph</option>
+                </select>
+            </label>
+        </div>
         <div id="overview" class="widget visualization" style="flex: 0 0 80px"></div>
         <div style="flex:1; min-height: 0; display: flex; flex-direction: column;">
             <div id="timeline" class="widget visualization" style="flex: 0 0 auto; height: 300px"></div>
@@ -55,7 +85,8 @@
                     data-layout-splitter-dir="-1"
                     data-layout-splitter-min="500"
                 ></div>
-                <div id="flamegraph" class="widget visualization" style="flex: 1 1 auto"></div>
+                <div id="flamegraph" class="widget visualization" style="flex: 1 1 auto; display: block;"></div>
+                <div id="callgraph" class="widget visualization" style="flex: 1 1 auto; display: none;"></div>
             </div>
         </div>
     </div>
@@ -65,6 +96,9 @@
     <script crossorigin src="?SPX_UI_URI=/js/jscolor.min.js" integrity="sha256-CJWfUCeP3jLdUMVNUll6yQx37gh9AKmXTRxvRf7jzro="></script>
     <script type="module" crossorigin src="?SPX_UI_URI=/js/fmt.js"></script>
     <script type="module" crossorigin src="?SPX_UI_URI=/js/profileData.js"></script>
+    <script type="module" crossorigin src="?SPX_UI_URI=/js/callGraph.js"></script>
+    <script type="module" crossorigin src="?SPX_UI_URI=/js/colorSchemes.js"></script>
+    <script type="module" crossorigin src="?SPX_UI_URI=/js/layouts.js"></script>
     <script type="module" crossorigin src="?SPX_UI_URI=/js/widget.js"></script>
     <script type="module" crossorigin src="?SPX_UI_URI=/js/layoutSplitter.js"></script>
 
@@ -274,6 +308,7 @@
                         new widget.TimeLine($('#timeline'), profileData),
                         new widget.FlatProfile($('#flatprofile'), profileData),
                         new widget.FlameGraph($('#flamegraph'), profileData),
+                        new widget.CallGraphView($('#callgraph'), profileData),
                     ];
 
                     widgets.forEach(widget => widget.render());
@@ -286,13 +321,83 @@
                     layoutSplitter.init();
                     layoutSplitter.change(() => {
                         widgets.forEach(widget => {
-                            if (!["timeline", "flatprofile", "flamegraph"].includes(widget.container.attr("id"))) {
+                            if (!["timeline", "flatprofile", "flamegraph", "callgraph"].includes(widget.container.attr("id"))) {
                                 return;
                             }
 
                             widget.handleResize();
                         });
                     });
+
+                    // Phase 2: Filter controls event handlers
+                    const colorSchemeSelector = $('#color-scheme-selector');
+                    const filterMinPercent = $('#filter-min-percent');
+                    const filterHotPathOnly = $('#filter-hotpath-only');
+
+                    // Color scheme selection
+                    colorSchemeSelector.on('change', () => {
+                        const scheme = colorSchemeSelector.val();
+                        console.log('Color scheme changed:', scheme);
+                        // Trigger repaint for widgets that support color schemes
+                        $(window).trigger('spx-color-scheme-update', [scheme]);
+                        widgets.forEach(widget => widget.repaint());
+                    });
+
+                    // Filter by percentage
+                    filterMinPercent.on('change', () => {
+                        const minPercent = parseFloat(filterMinPercent.val()) || 0;
+                        console.log('Min percent filter:', minPercent);
+                        $(window).trigger('spx-filter-update', [{
+                            minPercent: minPercent,
+                            hotPathOnly: filterHotPathOnly.is(':checked')
+                        }]);
+                    });
+
+                    // Filter hot path only
+                    filterHotPathOnly.on('change', () => {
+                        const hotPathOnly = filterHotPathOnly.is(':checked');
+                        console.log('Hot path only filter:', hotPathOnly);
+                        $(window).trigger('spx-filter-update', [{
+                            minPercent: parseFloat(filterMinPercent.val()) || 0,
+                            hotPathOnly: hotPathOnly
+                        }]);
+                    });
+
+                    // Cross-widget synchronization: highlighted function
+                    $(window).on('spx-highlighted-function-update', (event, functionName) => {
+                        console.log('Highlighted function:', functionName);
+                        // All widgets already handle this event individually
+                    });
+
+                    // Phase 3: View mode selector
+                    const viewModeSelector = $('#view-mode-selector');
+                    viewModeSelector.on('change', () => {
+                        const viewMode = viewModeSelector.val();
+                        console.log('View mode changed:', viewMode);
+
+                        if (viewMode === 'flamegraph') {
+                            $('#flamegraph').show();
+                            $('#callgraph').hide();
+                        } else if (viewMode === 'callgraph') {
+                            $('#flamegraph').hide();
+                            $('#callgraph').show();
+                            // Trigger resize to ensure layout is correct
+                            widgets.forEach(widget => {
+                                if (widget.container.attr("id") === "callgraph") {
+                                    widget.handleResize();
+                                }
+                            });
+                        }
+                    });
+
+                    // Log initialization complete
+                    console.log('✓ Phase 2 features initialized');
+                    console.log('  - Color scheme selector');
+                    console.log('  - Filter controls (min %, hot path only)');
+                    console.log('  - Cross-widget synchronization');
+                    console.log('✓ Phase 3 features initialized');
+                    console.log('  - CallGraphView widget');
+                    console.log('  - View mode selector (Flame Graph / Call Graph)');
 
                     return new Promise(resolve => resolve());
                 })

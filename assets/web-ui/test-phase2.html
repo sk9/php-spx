@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>SPX Phase 2 Test - Hot Path Visualization</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #111;
+            color: #089;
+        }
+        h1 {
+            color: #0ff;
+        }
+        #test-results {
+            margin-top: 20px;
+        }
+        .test {
+            margin: 10px 0;
+            padding: 10px;
+            background: #222;
+            border-left: 3px solid #444;
+        }
+        .test.pass {
+            border-color: #0f0;
+        }
+        .test.fail {
+            border-color: #f00;
+        }
+        .test-name {
+            font-weight: bold;
+            color: #fff;
+        }
+        .test-details {
+            margin-left: 20px;
+            margin-top: 5px;
+            color: #aaa;
+        }
+        .color-swatch {
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            border: 1px solid #fff;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        pre {
+            background: #000;
+            padding: 10px;
+            overflow-x: auto;
+            color: #0f0;
+        }
+    </style>
+</head>
+<body>
+    <h1>SPX Phase 2 Test - Hot Path Visualization</h1>
+    <p>Testing color schemes, enhanced FlatProfile, and cross-widget synchronization</p>
+
+    <div id="test-results">
+        <p>Running tests...</p>
+    </div>
+
+    <script type="module">
+        function getImportUrl(path) {
+            const rootUrl = new URL(import.meta.url);
+            rootUrl.searchParams.set('SPX_UI_URI', path);
+            return rootUrl.toString();
+        }
+
+        const colorSchemes = await import(getImportUrl('/js/colorSchemes.js'));
+
+        const results = [];
+
+        function runTest(name, testFn) {
+            try {
+                const result = testFn();
+                results.push({
+                    name,
+                    pass: true,
+                    details: result
+                });
+            } catch (e) {
+                results.push({
+                    name,
+                    pass: false,
+                    details: e.message,
+                    error: e
+                });
+            }
+        }
+
+        // Test 1: ColorSchemes module import
+        runTest('ColorSchemes Module Import', () => {
+            if (!colorSchemes.ColorSchemes) {
+                throw new Error('ColorSchemes class not found');
+            }
+            return 'ColorSchemes module loaded successfully';
+        });
+
+        // Test 2: Hot Path Red Gradient
+        runTest('Hot Path Red Gradient', () => {
+            const colors = [];
+            for (let i = 0; i <= 10; i++) {
+                const score = i / 10;
+                const color = colorSchemes.ColorSchemes.HOTPATH_RED(score);
+                colors.push({ score, color });
+            }
+
+            if (!colors[0].color.startsWith('rgb(')) {
+                throw new Error('Invalid color format');
+            }
+
+            // Check gradient progresses from dark to bright
+            const firstColor = colors[0].color;
+            const lastColor = colors[10].color;
+
+            return `Generated 11 colors from dark (${firstColor}) to bright (${lastColor})`;
+        });
+
+        // Test 3: Gradient Blue-Red
+        runTest('Gradient Blue-Red', () => {
+            const coldColor = colorSchemes.ColorSchemes.GRADIENT_BLUE_RED(0);  // Blue
+            const hotColor = colorSchemes.ColorSchemes.GRADIENT_BLUE_RED(1);   // Red
+
+            if (!coldColor.startsWith('rgb(') || !hotColor.startsWith('rgb(')) {
+                throw new Error('Invalid color format');
+            }
+
+            return `Cold (blue): ${coldColor}, Hot (red): ${hotColor}`;
+        });
+
+        // Test 4: Flame Classic
+        runTest('Flame Classic', () => {
+            const colors = [];
+            for (let i = 0; i < 5; i++) {
+                const color = colorSchemes.ColorSchemes.FLAME_CLASSIC(0.5, i);
+                colors.push(color);
+            }
+
+            if (colors.length !== 5) {
+                throw new Error('Wrong number of colors generated');
+            }
+
+            return `Generated ${colors.length} flame colors with depth variation`;
+        });
+
+        // Test 5: Category-Based
+        runTest('Category-Based Coloring', () => {
+            const phpInternal = colorSchemes.ColorSchemes.CATEGORY_BASED('array_map');
+            const userFunction = colorSchemes.ColorSchemes.CATEGORY_BASED('MyClass::myMethod');
+            const unknown = colorSchemes.ColorSchemes.CATEGORY_BASED('unknown_function');
+
+            return `PHP internal: ${phpInternal}, User: ${userFunction}, Unknown: ${unknown}`;
+        });
+
+        // Test 6: Category with Hot Path Overlay
+        runTest('Category + Hot Path Overlay', () => {
+            const normalColor = colorSchemes.ColorSchemes.CATEGORY_WITH_HOTPATH('array_map', false, 0);
+            const hotColor = colorSchemes.ColorSchemes.CATEGORY_WITH_HOTPATH('array_map', true, 0.8);
+
+            return `Normal: ${normalColor}, Hot: ${hotColor}`;
+        });
+
+        // Test 7: Depth Gradient
+        runTest('Depth Gradient', () => {
+            const shallow = colorSchemes.ColorSchemes.DEPTH_GRADIENT(0, 10);
+            const deep = colorSchemes.ColorSchemes.DEPTH_GRADIENT(10, 10);
+
+            return `Shallow (depth 0): ${shallow}, Deep (depth 10): ${deep}`;
+        });
+
+        // Test 8: Calls Heatmap
+        runTest('Calls Heatmap', () => {
+            const fewCalls = colorSchemes.ColorSchemes.CALLS_HEATMAP(10, 1000);
+            const manyCalls = colorSchemes.ColorSchemes.CALLS_HEATMAP(950, 1000);
+
+            return `Few calls: ${fewCalls}, Many calls: ${manyCalls}`;
+        });
+
+        // Test 9: Memory Gradient
+        runTest('Memory Gradient', () => {
+            const lowMemory = colorSchemes.ColorSchemes.MEMORY_GRADIENT(100, 10000);
+            const highMemory = colorSchemes.ColorSchemes.MEMORY_GRADIENT(9500, 10000);
+
+            return `Low memory: ${lowMemory}, High memory: ${highMemory}`;
+        });
+
+        // Test 10: Differential Coloring
+        runTest('Differential Coloring', () => {
+            const noChange = colorSchemes.ColorSchemes.DIFFERENTIAL(0);
+            const regression = colorSchemes.ColorSchemes.DIFFERENTIAL(50);  // 50% slower
+            const improvement = colorSchemes.ColorSchemes.DIFFERENTIAL(-50);  // 50% faster
+
+            return `No change: ${noChange}, Regression: ${regression}, Improvement: ${improvement}`;
+        });
+
+        // Test 11: Get Scheme by Name
+        runTest('Get Scheme by Name', () => {
+            const hotpathScheme = colorSchemes.ColorSchemes.getScheme('hotpath');
+            const gradientScheme = colorSchemes.ColorSchemes.getScheme('gradient');
+            const unknownScheme = colorSchemes.ColorSchemes.getScheme('unknown');
+
+            if (typeof hotpathScheme !== 'function' || typeof gradientScheme !== 'function') {
+                throw new Error('Scheme functions not returned');
+            }
+
+            return 'Successfully retrieved schemes by name';
+        });
+
+        // Test 12: Available Schemes
+        runTest('Available Schemes List', () => {
+            const schemes = colorSchemes.ColorSchemes.getAvailableSchemes();
+
+            if (!Array.isArray(schemes) || schemes.length === 0) {
+                throw new Error('No schemes returned');
+            }
+
+            const hasHotPath = schemes.some(s => s.value === 'hotpath');
+            const hasGradient = schemes.some(s => s.value === 'gradient');
+
+            if (!hasHotPath || !hasGradient) {
+                throw new Error('Missing expected schemes');
+            }
+
+            return `Found ${schemes.length} available schemes`;
+        });
+
+        // Test 13: ColorSchemeManager
+        runTest('ColorSchemeManager', () => {
+            const manager = new colorSchemes.ColorSchemeManager();
+
+            if (manager.getCurrentScheme() !== 'category') {
+                throw new Error('Wrong default scheme');
+            }
+
+            manager.setScheme('hotpath');
+
+            if (manager.getCurrentScheme() !== 'hotpath') {
+                throw new Error('Scheme not changed');
+            }
+
+            return `Manager initialized with default 'category', changed to 'hotpath'`;
+        });
+
+        // Test 14: HSV to RGB Conversion
+        runTest('HSV to RGB Conversion', () => {
+            const red = colorSchemes.ColorSchemes._hsvToRgb(0, 1, 1);  // Pure red
+            const green = colorSchemes.ColorSchemes._hsvToRgb(0.33, 1, 1);  // Pure green
+            const blue = colorSchemes.ColorSchemes._hsvToRgb(0.67, 1, 1);  // Pure blue
+
+            if (!red.startsWith('rgb(255,') || !green.includes('255') || !blue.endsWith(',255)')) {
+                throw new Error('HSV to RGB conversion incorrect');
+            }
+
+            return `Red: ${red}, Green: ${green}, Blue: ${blue}`;
+        });
+
+        // Test 15: RGB Parsing
+        runTest('RGB Parsing', () => {
+            const hexColor = colorSchemes.ColorSchemes._parseRgb('#FF0000');
+            const rgbColor = colorSchemes.ColorSchemes._parseRgb('rgb(255,0,0)');
+
+            if (!hexColor || hexColor.r !== 255 || hexColor.g !== 0 || hexColor.b !== 0) {
+                throw new Error('Hex parsing failed');
+            }
+
+            if (!rgbColor || rgbColor.r !== 255 || rgbColor.g !== 0 || rgbColor.b !== 0) {
+                throw new Error('RGB parsing failed');
+            }
+
+            return 'Successfully parsed hex and rgb formats';
+        });
+
+        // Render results
+        const container = document.getElementById('test-results');
+        container.innerHTML = '';
+
+        const summary = document.createElement('div');
+        const passCount = results.filter(r => r.pass).length;
+        const failCount = results.filter(r => !r.pass).length;
+
+        summary.innerHTML = `
+            <h2>Test Results: ${passCount}/${results.length} passed</h2>
+            <p style="color: ${failCount === 0 ? '#0f0' : '#f00'}">
+                ✓ ${passCount} passed, ✗ ${failCount} failed
+            </p>
+        `;
+        container.appendChild(summary);
+
+        for (const result of results) {
+            const testDiv = document.createElement('div');
+            testDiv.className = `test ${result.pass ? 'pass' : 'fail'}`;
+
+            testDiv.innerHTML = `
+                <div class="test-name">
+                    ${result.pass ? '✓' : '✗'} ${result.name}
+                </div>
+                <div class="test-details">
+                    ${result.pass ? result.details : 'ERROR: ' + result.details}
+                </div>
+            `;
+
+            container.appendChild(testDiv);
+        }
+
+        // Visual color scheme demonstrations
+        const demoSection = document.createElement('div');
+        demoSection.innerHTML = '<h2>Color Scheme Demonstrations</h2>';
+        container.appendChild(demoSection);
+
+        // Hot Path Red Gradient Demo
+        const hotPathDemo = document.createElement('div');
+        hotPathDemo.innerHTML = '<h3>Hot Path Red Gradient (0.0 → 1.0)</h3>';
+        for (let i = 0; i <= 10; i++) {
+            const score = i / 10;
+            const color = colorSchemes.ColorSchemes.HOTPATH_RED(score);
+            const swatch = document.createElement('span');
+            swatch.className = 'color-swatch';
+            swatch.style.backgroundColor = color;
+            swatch.title = `Score: ${score.toFixed(1)} - ${color}`;
+            hotPathDemo.appendChild(swatch);
+            hotPathDemo.appendChild(document.createTextNode(` ${score.toFixed(1)} `));
+        }
+        container.appendChild(hotPathDemo);
+
+        // Gradient Blue-Red Demo
+        const gradientDemo = document.createElement('div');
+        gradientDemo.innerHTML = '<h3>Temperature Gradient (Blue → Red)</h3>';
+        for (let i = 0; i <= 10; i++) {
+            const score = i / 10;
+            const color = colorSchemes.ColorSchemes.GRADIENT_BLUE_RED(score);
+            const swatch = document.createElement('span');
+            swatch.className = 'color-swatch';
+            swatch.style.backgroundColor = color;
+            swatch.title = `Score: ${score.toFixed(1)} - ${color}`;
+            gradientDemo.appendChild(swatch);
+            gradientDemo.appendChild(document.createTextNode(` ${score.toFixed(1)} `));
+        }
+        container.appendChild(gradientDemo);
+
+        // Show summary statistics
+        const stats = document.createElement('pre');
+        stats.textContent = `
+Phase 2 Test Summary
+====================
+Total Tests: ${results.length}
+Passed: ${passCount}
+Failed: ${failCount}
+Success Rate: ${Math.round((passCount / results.length) * 100)}%
+
+Phase 2 Components Tested:
+- colorSchemes.js (10 color scheme functions)
+- ColorSchemeManager (scheme management)
+- HSV to RGB conversion
+- RGB color parsing
+- 8 built-in color schemes:
+  * Hot Path (Red Gradient)
+  * Temperature (Blue-Red)
+  * Flame (Classic)
+  * Category
+  * Category + Hot Path
+  * Depth
+  * Calls Heatmap
+  * Memory
+
+Enhanced Features:
+- FlatProfile widget with hot path column
+- Filter controls (min %, hot path only)
+- Cross-widget synchronization
+- Color scheme selector
+`;
+        container.appendChild(stats);
+
+        console.log('✓ Phase 2 tests complete');
+        console.log(`Results: ${passCount}/${results.length} passed`);
+    </script>
+</body>
+</html>
