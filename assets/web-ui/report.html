@@ -58,6 +58,13 @@
                 <span>Hot Path Only:</span>
                 <input type="checkbox" id="filter-hotpath-only">
             </label>
+            <label style="display: flex; align-items: center; gap: 5px;">
+                <span>View Mode:</span>
+                <select id="view-mode-selector" style="padding: 2px;">
+                    <option value="flamegraph" selected>Flame Graph</option>
+                    <option value="callgraph">Call Graph</option>
+                </select>
+            </label>
         </div>
         <div id="overview" class="widget visualization" style="flex: 0 0 80px"></div>
         <div style="flex:1; min-height: 0; display: flex; flex-direction: column;">
@@ -78,7 +85,8 @@
                     data-layout-splitter-dir="-1"
                     data-layout-splitter-min="500"
                 ></div>
-                <div id="flamegraph" class="widget visualization" style="flex: 1 1 auto"></div>
+                <div id="flamegraph" class="widget visualization" style="flex: 1 1 auto; display: block;"></div>
+                <div id="callgraph" class="widget visualization" style="flex: 1 1 auto; display: none;"></div>
             </div>
         </div>
     </div>
@@ -300,6 +308,7 @@
                         new widget.TimeLine($('#timeline'), profileData),
                         new widget.FlatProfile($('#flatprofile'), profileData),
                         new widget.FlameGraph($('#flamegraph'), profileData),
+                        new widget.CallGraphView($('#callgraph'), profileData),
                     ];
 
                     widgets.forEach(widget => widget.render());
@@ -312,7 +321,7 @@
                     layoutSplitter.init();
                     layoutSplitter.change(() => {
                         widgets.forEach(widget => {
-                            if (!["timeline", "flatprofile", "flamegraph"].includes(widget.container.attr("id"))) {
+                            if (!["timeline", "flatprofile", "flamegraph", "callgraph"].includes(widget.container.attr("id"))) {
                                 return;
                             }
 
@@ -360,11 +369,35 @@
                         // All widgets already handle this event individually
                     });
 
+                    // Phase 3: View mode selector
+                    const viewModeSelector = $('#view-mode-selector');
+                    viewModeSelector.on('change', () => {
+                        const viewMode = viewModeSelector.val();
+                        console.log('View mode changed:', viewMode);
+
+                        if (viewMode === 'flamegraph') {
+                            $('#flamegraph').show();
+                            $('#callgraph').hide();
+                        } else if (viewMode === 'callgraph') {
+                            $('#flamegraph').hide();
+                            $('#callgraph').show();
+                            // Trigger resize to ensure layout is correct
+                            widgets.forEach(widget => {
+                                if (widget.container.attr("id") === "callgraph") {
+                                    widget.handleResize();
+                                }
+                            });
+                        }
+                    });
+
                     // Log initialization complete
                     console.log('✓ Phase 2 features initialized');
                     console.log('  - Color scheme selector');
                     console.log('  - Filter controls (min %, hot path only)');
                     console.log('  - Cross-widget synchronization');
+                    console.log('✓ Phase 3 features initialized');
+                    console.log('  - CallGraphView widget');
+                    console.log('  - View mode selector (Flame Graph / Call Graph)');
 
                     return new Promise(resolve => resolve());
                 })
