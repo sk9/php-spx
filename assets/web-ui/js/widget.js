@@ -25,6 +25,8 @@ const utils = await import(getImportUrl('/js/utils.js'));
 const fmt = await import(getImportUrl('/js/fmt.js'));
 const math = await import(getImportUrl('/js/math.js'));
 const svg = await import(getImportUrl('/js/svg.js'));
+const callGraph = await import(getImportUrl('/js/callGraph.js'));
+const colorSchemes = await import(getImportUrl('/js/colorSchemes.js'));
 
 function getCallMetricValueColor(profileData, metric, value) {
     const metricRange = profileData.getStats().getCallRange(metric);
@@ -1654,13 +1656,36 @@ export class FlatProfile extends Widget {
 
         this.sortCol = 'exc';
         this.sortDir = -1;
+        this.graphData = null;  // Cache call graph data
     }
 
     onTimeRangeUpdate() {
+        this.graphData = null;  // Invalidate cache
         this.repaint();
     }
 
+    /**
+     * Build or get cached call graph data
+     */
+    getGraphData() {
+        if (!this.graphData) {
+            try {
+                this.graphData = new callGraph.CallGraphData(
+                    this.profileData,
+                    this.timeRange,
+                    this.currentMetric
+                );
+            } catch (e) {
+                console.warn('Failed to build call graph data:', e);
+                this.graphData = null;
+            }
+        }
+        return this.graphData;
+    }
+
     render() {
+        const graphData = this.getGraphData();
+        const hasCallGraph = graphData !== null;
 
         let html = `
 <table width="${this.container.width() - 20}px">
@@ -1669,6 +1694,7 @@ export class FlatProfile extends Widget {
         <th rowspan="3" class="sortable" data-sort="name">Function</th>
         <th rowspan="3" width="80px" class="sortable" data-sort="called">Called</th>
         <th colspan="4">${this.profileData.getMetricInfo(this.currentMetric).name}</th>
+        ${hasCallGraph ? '<th rowspan="3" width="80px" class="sortable" data-sort="hotpath">Hot Path</th>' : ''}
     </tr>
     <tr>
         <th colspan="2">Percentage</th>
@@ -1697,35 +1723,63 @@ export class FlatProfile extends Widget {
                 this.searchQuery && (stats.functionName.toLowerCase()).indexOf(this.searchQuery.toLowerCase()) < 0
             ));
 
+        // Sort with hot path support
         functionsStats.sort((a, b) => {
+            let aVal, bVal;
+
             switch (this.sortCol) {
                 case 'name':
-                    a = a.functionName;
-                    b = b.functionName;
-
+                    aVal = a.functionName;
+                    bVal = b.functionName;
                     break;
 
                 case 'called':
-                    a = a.called;
-                    b = b.called;
-
+                    aVal = a.called;
+                    bVal = b.called;
                     break;
 
                 case 'inc_rel':
                 case 'inc':
-                    a = a.inc.getValue(this.currentMetric);
-                    b = b.inc.getValue(this.currentMetric);
+                    aVal = a.inc.getValue(this.currentMetric);
+                    bVal = b.inc.getValue(this.currentMetric);
+                    break;
 
+                case 'hotpath':
+                    if (hasCallGraph) {
+                        const aNode = graphData.nodes.get(a.functionName);
+                        const bNode = graphData.nodes.get(b.functionName);
+
+                        // Hot path nodes first
+                        if (aNode && aNode.isOnHotPath && !(bNode && bNode.isOnHotPath)) {
+                            return -1 * this.sortDir;
+                        }
+                        if (bNode && bNode.isOnHotPath && !(aNode && aNode.isOnHotPath)) {
+                            return 1 * this.sortDir;
+                        }
+
+                        // If both on hot path, sort by rank
+                        if (aNode && bNode && aNode.isOnHotPath && bNode.isOnHotPath) {
+                            aVal = aNode.hotPathRank;
+                            bVal = bNode.hotPathRank;
+                        } else {
+                            // Sort by metric
+                            aVal = a.inc.getValue(this.currentMetric);
+                            bVal = b.inc.getValue(this.currentMetric);
+                        }
+                    } else {
+                        aVal = a.inc.getValue(this.currentMetric);
+                        bVal = b.inc.getValue(this.currentMetric);
+                    }
                     break;
 
                 case 'exc_rel':
                 case 'exc':
                 default:
-                    a = a.exc.getValue(this.currentMetric);
-                    b = b.exc.getValue(this.currentMetric);
+                    aVal = a.exc.getValue(this.currentMetric);
+                    bVal = b.exc.getValue(this.currentMetric);
             }
 
-            return (a < b ? -1 : (a > b)) * this.sortDir;
+            return (aVal < bVal ? -1 : (aVal > bVal)) * this.sortDir;
         });
 
         const formatter = this.profileData.getMetricFormatter(this.currentMetric);
@@ -1774,8 +1828,26 @@ export class FlatProfile extends Widget {
                 functionLabel += '@' + stats.maxCycleDepth;
             }
 
+            // Get hot path info
+            let hotPathCell = '';
+            let rowHighlight = '';
+            if (hasCallGraph) {
+                const node = graphData.nodes.get(stats.functionName);
+                if (node && node.isOnHotPath) {
+                    const hotPathScore = node.hotPathScore;
+                    const hotPathRank = node.hotPathRank;
+                    hotPathCell = `<td width="80px" style="text-align: center; color: #f00; font-weight: bold;" title="Hot path rank: ${hotPathRank}, Score: ${(hotPathScore * 100).toFixed(1)}%">🔥 #${hotPathRank}</td>`;
+
+                    // Highlight hot path rows
+                    const hotColor = colorSchemes.ColorSchemes.HOTPATH_RED(hotPathScore);
+                    rowHighlight = `background: linear-gradient(90deg, ${hotColor}22 0%, transparent 100%);`;
+                } else {
+                    hotPathCell = `<td width="80px"></td>`;
+                }
+            }
+
             html += `
-<tr>
+<tr style="${rowHighlight}">
     <td
         data-function-name="${stats.functionName}"
         title="${functionLabel}"
@@ -1790,13 +1862,14 @@ export class FlatProfile extends Widget {
             )
         }"
     >
-        ${utils.truncateFunctionName(functionLabel, (this.container.width() - 5 * 90) / 8)}
+        ${utils.truncateFunctionName(functionLabel, (this.container.width() - (hasCallGraph ? 6 : 5) * 90) / 8)}
     </td>
     <td width="80px">${fmt.quantity(stats.called)}</td>
     <td width="80px">${fmt.pct(incRel)}${renderRelativeCostBar(incRel)}</td>
     <td width="80px">${fmt.pct(excRel)}${renderRelativeCostBar(excRel)}</td>
     <td width="80px">${formatter(inc)}</td>
     <td width="80px">${formatter(exc)}</td>
+    ${hotPathCell}
 </tr>
             `;
         }
