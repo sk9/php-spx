@@ -131,9 +131,7 @@ spx_config_builder_t *spx_config_builder_reset(spx_config_builder_t *builder)
     builder->config.max_depth = 0;
 
     /* Default metrics */
-    SPX_METRIC_FOREACH(i, {
-        builder->config.enabled_metrics[i] = 0;
-    });
+    SPX_METRIC_FOREACH(i, { builder->config.enabled_metrics[i] = 0; });
     builder->config.enabled_metrics[SPX_METRIC_WALL_TIME] = 1;
     builder->config.enabled_metrics[SPX_METRIC_ZE_MEMORY_USAGE] = 1;
 
@@ -159,9 +157,7 @@ spx_config_builder_t *spx_config_builder_reset(spx_config_builder_t *builder)
  * Core Configuration Setters
  *============================================================================*/
 
-spx_config_builder_t *spx_config_builder_enabled(
-    spx_config_builder_t *builder,
-    int enabled)
+spx_config_builder_t *spx_config_builder_enabled(spx_config_builder_t *builder, int enabled)
 {
     if (builder) {
         builder->config.enabled = enabled ? 1 : 0;
@@ -169,9 +165,7 @@ spx_config_builder_t *spx_config_builder_enabled(
     return builder;
 }
 
-spx_config_builder_t *spx_config_builder_key(
-    spx_config_builder_t *builder,
-    const char *key)
+spx_config_builder_t *spx_config_builder_key(spx_config_builder_t *builder, const char *key)
 {
     if (!builder) {
         return NULL;
@@ -184,9 +178,7 @@ spx_config_builder_t *spx_config_builder_key(
     return builder;
 }
 
-spx_config_builder_t *spx_config_builder_auto_start(
-    spx_config_builder_t *builder,
-    int auto_start)
+spx_config_builder_t *spx_config_builder_auto_start(spx_config_builder_t *builder, int auto_start)
 {
     if (builder) {
         builder->config.auto_start = auto_start ? 1 : 0;
@@ -198,9 +190,8 @@ spx_config_builder_t *spx_config_builder_auto_start(
  * Profiling Configuration Setters
  *============================================================================*/
 
-spx_config_builder_t *spx_config_builder_sampling_period(
-    spx_config_builder_t *builder,
-    size_t period)
+spx_config_builder_t *spx_config_builder_sampling_period(spx_config_builder_t *builder,
+                                                         size_t period)
 {
     if (builder) {
         if (period > 10000000) {
@@ -212,9 +203,7 @@ spx_config_builder_t *spx_config_builder_sampling_period(
     return builder;
 }
 
-spx_config_builder_t *spx_config_builder_builtins(
-    spx_config_builder_t *builder,
-    int builtins)
+spx_config_builder_t *spx_config_builder_builtins(spx_config_builder_t *builder, int builtins)
 {
     if (builder) {
         builder->config.builtins = builtins ? 1 : 0;
@@ -222,9 +211,7 @@ spx_config_builder_t *spx_config_builder_builtins(
     return builder;
 }
 
-spx_config_builder_t *spx_config_builder_max_depth(
-    spx_config_builder_t *builder,
-    size_t max_depth)
+spx_config_builder_t *spx_config_builder_max_depth(spx_config_builder_t *builder, size_t max_depth)
 {
     if (builder) {
         if (max_depth > 100000) {
@@ -240,9 +227,8 @@ spx_config_builder_t *spx_config_builder_max_depth(
  * Metric Configuration
  *============================================================================*/
 
-spx_config_builder_t *spx_config_builder_enable_metric(
-    spx_config_builder_t *builder,
-    spx_metric_t metric)
+spx_config_builder_t *spx_config_builder_enable_metric(spx_config_builder_t *builder,
+                                                       spx_metric_t metric)
 {
     if (builder && metric < SPX_METRIC_COUNT) {
         builder->config.enabled_metrics[metric] = 1;
@@ -250,9 +236,8 @@ spx_config_builder_t *spx_config_builder_enable_metric(
     return builder;
 }
 
-spx_config_builder_t *spx_config_builder_disable_metric(
-    spx_config_builder_t *builder,
-    spx_metric_t metric)
+spx_config_builder_t *spx_config_builder_disable_metric(spx_config_builder_t *builder,
+                                                        spx_metric_t metric)
 {
     if (builder && metric < SPX_METRIC_COUNT) {
         builder->config.enabled_metrics[metric] = 0;
@@ -260,18 +245,15 @@ spx_config_builder_t *spx_config_builder_disable_metric(
     return builder;
 }
 
-spx_config_builder_t *spx_config_builder_metrics_from_string(
-    spx_config_builder_t *builder,
-    const char *metrics)
+spx_config_builder_t *spx_config_builder_metrics_from_string(spx_config_builder_t *builder,
+                                                             const char *metrics)
 {
     if (!builder || !metrics) {
         return builder;
     }
 
     /* Disable all metrics first */
-    SPX_METRIC_FOREACH(i, {
-        builder->config.enabled_metrics[i] = 0;
-    });
+    SPX_METRIC_FOREACH(i, { builder->config.enabled_metrics[i] = 0; });
 
     /* Parse comma-separated list */
     SPX_UTILS_TOKENIZE_STRING(metrics, ',', token, 32, {
@@ -284,24 +266,18 @@ spx_config_builder_t *spx_config_builder_metrics_from_string(
     return builder;
 }
 
-spx_config_builder_t *spx_config_builder_enable_all_metrics(
-    spx_config_builder_t *builder)
+spx_config_builder_t *spx_config_builder_enable_all_metrics(spx_config_builder_t *builder)
 {
     if (builder) {
-        SPX_METRIC_FOREACH(i, {
-            builder->config.enabled_metrics[i] = 1;
-        });
+        SPX_METRIC_FOREACH(i, { builder->config.enabled_metrics[i] = 1; });
     }
     return builder;
 }
 
-spx_config_builder_t *spx_config_builder_disable_all_metrics(
-    spx_config_builder_t *builder)
+spx_config_builder_t *spx_config_builder_disable_all_metrics(spx_config_builder_t *builder)
 {
     if (builder) {
-        SPX_METRIC_FOREACH(i, {
-            builder->config.enabled_metrics[i] = 0;
-        });
+        SPX_METRIC_FOREACH(i, { builder->config.enabled_metrics[i] = 0; });
     }
     return builder;
 }
@@ -310,9 +286,8 @@ spx_config_builder_t *spx_config_builder_disable_all_metrics(
  * Report Configuration
  *============================================================================*/
 
-spx_config_builder_t *spx_config_builder_report(
-    spx_config_builder_t *builder,
-    spx_config_report_t report)
+spx_config_builder_t *spx_config_builder_report(spx_config_builder_t *builder,
+                                                spx_config_report_t report)
 {
     if (builder) {
         builder->config.report = report;
@@ -320,9 +295,8 @@ spx_config_builder_t *spx_config_builder_report(
     return builder;
 }
 
-spx_config_builder_t *spx_config_builder_report_from_string(
-    spx_config_builder_t *builder,
-    const char *report_str)
+spx_config_builder_t *spx_config_builder_report_from_string(spx_config_builder_t *builder,
+                                                            const char *report_str)
 {
     if (!builder || !report_str) {
         return builder;
@@ -345,9 +319,7 @@ spx_config_builder_t *spx_config_builder_report_from_string(
  * Flat Profile Configuration
  *============================================================================*/
 
-spx_config_builder_t *spx_config_builder_fp_focus(
-    spx_config_builder_t *builder,
-    spx_metric_t focus)
+spx_config_builder_t *spx_config_builder_fp_focus(spx_config_builder_t *builder, spx_metric_t focus)
 {
     if (builder) {
         if (focus >= SPX_METRIC_COUNT) {
@@ -359,9 +331,7 @@ spx_config_builder_t *spx_config_builder_fp_focus(
     return builder;
 }
 
-spx_config_builder_t *spx_config_builder_fp_inc(
-    spx_config_builder_t *builder,
-    int inc)
+spx_config_builder_t *spx_config_builder_fp_inc(spx_config_builder_t *builder, int inc)
 {
     if (builder) {
         builder->config.fp_inc = inc ? 1 : 0;
@@ -369,9 +339,7 @@ spx_config_builder_t *spx_config_builder_fp_inc(
     return builder;
 }
 
-spx_config_builder_t *spx_config_builder_fp_rel(
-    spx_config_builder_t *builder,
-    int rel)
+spx_config_builder_t *spx_config_builder_fp_rel(spx_config_builder_t *builder, int rel)
 {
     if (builder) {
         builder->config.fp_rel = rel ? 1 : 0;
@@ -379,9 +347,7 @@ spx_config_builder_t *spx_config_builder_fp_rel(
     return builder;
 }
 
-spx_config_builder_t *spx_config_builder_fp_limit(
-    spx_config_builder_t *builder,
-    size_t limit)
+spx_config_builder_t *spx_config_builder_fp_limit(spx_config_builder_t *builder, size_t limit)
 {
     if (builder) {
         if (limit > 1000000) {
@@ -393,9 +359,7 @@ spx_config_builder_t *spx_config_builder_fp_limit(
     return builder;
 }
 
-spx_config_builder_t *spx_config_builder_fp_live(
-    spx_config_builder_t *builder,
-    int live)
+spx_config_builder_t *spx_config_builder_fp_live(spx_config_builder_t *builder, int live)
 {
     if (builder) {
         builder->config.fp_live = live ? 1 : 0;
@@ -403,9 +367,7 @@ spx_config_builder_t *spx_config_builder_fp_live(
     return builder;
 }
 
-spx_config_builder_t *spx_config_builder_fp_color(
-    spx_config_builder_t *builder,
-    int color)
+spx_config_builder_t *spx_config_builder_fp_color(spx_config_builder_t *builder, int color)
 {
     if (builder) {
         builder->config.fp_color = color ? 1 : 0;
@@ -417,9 +379,7 @@ spx_config_builder_t *spx_config_builder_fp_color(
  * Trace Configuration
  *============================================================================*/
 
-spx_config_builder_t *spx_config_builder_trace_file(
-    spx_config_builder_t *builder,
-    const char *file)
+spx_config_builder_t *spx_config_builder_trace_file(spx_config_builder_t *builder, const char *file)
 {
     if (!builder) {
         return NULL;
@@ -432,9 +392,7 @@ spx_config_builder_t *spx_config_builder_trace_file(
     return builder;
 }
 
-spx_config_builder_t *spx_config_builder_trace_safe(
-    spx_config_builder_t *builder,
-    int safe)
+spx_config_builder_t *spx_config_builder_trace_safe(spx_config_builder_t *builder, int safe)
 {
     if (builder) {
         builder->config.trace_safe = safe ? 1 : 0;
@@ -446,9 +404,7 @@ spx_config_builder_t *spx_config_builder_trace_safe(
  * HTTP UI Configuration
  *============================================================================*/
 
-spx_config_builder_t *spx_config_builder_ui_uri(
-    spx_config_builder_t *builder,
-    const char *uri)
+spx_config_builder_t *spx_config_builder_ui_uri(spx_config_builder_t *builder, const char *uri)
 {
     if (!builder) {
         return NULL;
@@ -465,9 +421,7 @@ spx_config_builder_t *spx_config_builder_ui_uri(
  * Build and Validation
  *============================================================================*/
 
-int spx_config_builder_validate(
-    spx_config_builder_t *builder,
-    spx_error_t *error)
+int spx_config_builder_validate(spx_config_builder_t *builder, spx_error_t *error)
 {
     if (!builder) {
         SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "NULL builder");
@@ -507,10 +461,8 @@ int spx_config_builder_validate(
     return 0;
 }
 
-int spx_config_builder_build(
-    spx_config_builder_t *builder,
-    spx_config_t *config,
-    spx_error_t *error)
+int spx_config_builder_build(spx_config_builder_t *builder, spx_config_t *config,
+                             spx_error_t *error)
 {
     if (!config) {
         SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "NULL config output");
@@ -599,9 +551,7 @@ spx_config_builder_t *spx_config_builder_preset_minimal(spx_config_builder_t *bu
     builder->config.builtins = 0;
 
     /* Only wall time */
-    SPX_METRIC_FOREACH(i, {
-        builder->config.enabled_metrics[i] = 0;
-    });
+    SPX_METRIC_FOREACH(i, { builder->config.enabled_metrics[i] = 0; });
     builder->config.enabled_metrics[SPX_METRIC_WALL_TIME] = 1;
 
     return builder;
@@ -621,9 +571,7 @@ spx_config_builder_t *spx_config_builder_preset_full(spx_config_builder_t *build
     builder->config.report = SPX_CONFIG_REPORT_FULL;
 
     /* Enable all metrics */
-    SPX_METRIC_FOREACH(i, {
-        builder->config.enabled_metrics[i] = 1;
-    });
+    SPX_METRIC_FOREACH(i, { builder->config.enabled_metrics[i] = 1; });
 
     return builder;
 }

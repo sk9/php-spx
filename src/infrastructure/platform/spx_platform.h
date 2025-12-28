@@ -55,15 +55,15 @@ typedef enum {
  * @brief Platform capabilities bitflags
  */
 typedef enum {
-    SPX_PLATFORM_CAP_WALL_TIME = 1 << 0,     /**< High-resolution wall time */
-    SPX_PLATFORM_CAP_CPU_TIME = 1 << 1,      /**< Process CPU time */
-    SPX_PLATFORM_CAP_MEMORY_RSS = 1 << 2,    /**< Resident set size */
-    SPX_PLATFORM_CAP_IO_STATS = 1 << 3,      /**< I/O statistics */
-    SPX_PLATFORM_CAP_PROCFS = 1 << 4,        /**< /proc filesystem */
-    SPX_PLATFORM_CAP_MACH_PORTS = 1 << 5,    /**< Mach ports (macOS) */
-    SPX_PLATFORM_CAP_KQUEUE = 1 << 6,        /**< kqueue events (BSD) */
-    SPX_PLATFORM_CAP_TTY = 1 << 7,           /**< TTY/terminal support */
-    SPX_PLATFORM_CAP_ANSI_COLORS = 1 << 8    /**< ANSI color sequences */
+    SPX_PLATFORM_CAP_WALL_TIME = 1 << 0,  /**< High-resolution wall time */
+    SPX_PLATFORM_CAP_CPU_TIME = 1 << 1,   /**< Process CPU time */
+    SPX_PLATFORM_CAP_MEMORY_RSS = 1 << 2, /**< Resident set size */
+    SPX_PLATFORM_CAP_IO_STATS = 1 << 3,   /**< I/O statistics */
+    SPX_PLATFORM_CAP_PROCFS = 1 << 4,     /**< /proc filesystem */
+    SPX_PLATFORM_CAP_MACH_PORTS = 1 << 5, /**< Mach ports (macOS) */
+    SPX_PLATFORM_CAP_KQUEUE = 1 << 6,     /**< kqueue events (BSD) */
+    SPX_PLATFORM_CAP_TTY = 1 << 7,        /**< TTY/terminal support */
+    SPX_PLATFORM_CAP_ANSI_COLORS = 1 << 8 /**< ANSI color sequences */
 } spx_platform_caps_t;
 
 /**
@@ -71,9 +71,9 @@ typedef enum {
  */
 typedef struct {
     spx_platform_type_t type;
-    unsigned int capabilities;  /**< Bitmask of spx_platform_caps_t */
-    const char *name;           /**< Human-readable platform name */
-    const char *version;        /**< Platform version string */
+    unsigned int capabilities; /**< Bitmask of spx_platform_caps_t */
+    const char *name;          /**< Human-readable platform name */
+    const char *version;       /**< Platform version string */
 } spx_platform_info_t;
 
 /*============================================================================
@@ -119,11 +119,11 @@ typedef struct spx_time_provider_t {
  * @brief Memory statistics structure
  */
 typedef struct {
-    size_t rss;          /**< Resident set size in bytes */
-    size_t vss;          /**< Virtual memory size in bytes */
-    size_t shared;       /**< Shared memory in bytes */
-    size_t private_mem;  /**< Private memory in bytes (renamed from 'private') */
-    size_t peak_rss;     /**< Peak RSS in bytes (if available) */
+    size_t rss;         /**< Resident set size in bytes */
+    size_t vss;         /**< Virtual memory size in bytes */
+    size_t shared;      /**< Shared memory in bytes */
+    size_t private_mem; /**< Private memory in bytes (renamed from 'private') */
+    size_t peak_rss;    /**< Peak RSS in bytes (if available) */
 } spx_memory_stats_t;
 
 /**
@@ -224,7 +224,7 @@ typedef struct {
     int is_directory;
     int is_symlink;
     int is_regular;
-    unsigned int mode;  /**< File permissions */
+    unsigned int mode; /**< File permissions */
 } spx_file_info_t;
 
 /**
@@ -239,7 +239,8 @@ typedef struct spx_fs_provider_t {
      * @param error Output error on failure
      * @return 0 on success, -1 on failure
      */
-    int (*get_info)(const char *path, spx_file_info_t *info, int follow_symlinks, spx_error_t *error);
+    int (*get_info)(const char *path, spx_file_info_t *info, int follow_symlinks,
+                    spx_error_t *error);
 
     /**
      * @brief Create directory with specified permissions

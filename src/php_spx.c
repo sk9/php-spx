@@ -528,10 +528,16 @@ static int check_access(void)
 
     /* Use constant-time comparison to prevent timing attacks (Issue 2.5) */
     if (spx_crypto_compare_strings_constant_time(SPX_G(http_key), context.config.key) != 0) {
-        /* Add random delay to prevent timing analysis */
+        /* Add cryptographically random delay to prevent timing analysis */
         struct timespec ts;
         ts.tv_sec = 0;
-        ts.tv_nsec = ((unsigned long) time(NULL) % 5000) * 1000; /* 0-5ms random delay */
+        unsigned int random_value = 0;
+        if (spx_crypto_random_bytes(&random_value, sizeof(random_value)) == 0) {
+            ts.tv_nsec = (random_value % 5000) * 1000; /* 0-5ms random delay */
+        } else {
+            /* Fallback to fixed delay if random fails */
+            ts.tv_nsec = 2500 * 1000; /* 2.5ms fixed delay */
+        }
         nanosleep(&ts, NULL);
 
         /* Don't leak which authentication factor failed */

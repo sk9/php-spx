@@ -78,12 +78,12 @@ typedef struct {
  * @brief Configuration for flat profile reporter
  */
 typedef struct {
-    spx_metric_t focus;    /**< Primary metric to focus on */
-    int show_inclusive;    /**< Show inclusive metrics */
-    int show_relative;     /**< Show relative percentages */
-    size_t limit;          /**< Maximum functions to display */
-    int live_mode;         /**< Enable live updating */
-    int use_color;         /**< Enable ANSI colors */
+    spx_metric_t focus; /**< Primary metric to focus on */
+    int show_inclusive; /**< Show inclusive metrics */
+    int show_relative;  /**< Show relative percentages */
+    size_t limit;       /**< Maximum functions to display */
+    int live_mode;      /**< Enable live updating */
+    int use_color;      /**< Enable ANSI colors */
 } spx_reporter_fp_config_t;
 
 /**
@@ -156,10 +156,8 @@ const char *spx_reporter_type_to_string(spx_reporter_type_t type);
  *
  * The returned reporter must be destroyed with spx_profiler_reporter_destroy()
  */
-spx_profiler_reporter_t *spx_reporter_create(
-    const spx_reporter_config_t *config,
-    spx_error_t *error
-);
+spx_profiler_reporter_t *spx_reporter_create(const spx_reporter_config_t *config,
+                                             spx_error_t *error);
 
 /**
  * @brief Create a full reporter (convenience function)
@@ -167,10 +165,7 @@ spx_profiler_reporter_t *spx_reporter_create(
  * @param error Output error on failure
  * @return New full reporter, or NULL on failure
  */
-spx_profiler_reporter_t *spx_reporter_create_full(
-    const char *data_dir,
-    spx_error_t *error
-);
+spx_profiler_reporter_t *spx_reporter_create_full(const char *data_dir, spx_error_t *error);
 
 /**
  * @brief Create a flat profile reporter (convenience function)
@@ -183,15 +178,9 @@ spx_profiler_reporter_t *spx_reporter_create_full(
  * @param error Output error on failure
  * @return New flat profile reporter, or NULL on failure
  */
-spx_profiler_reporter_t *spx_reporter_create_fp(
-    spx_metric_t focus,
-    int show_inclusive,
-    int show_relative,
-    size_t limit,
-    int live_mode,
-    int use_color,
-    spx_error_t *error
-);
+spx_profiler_reporter_t *spx_reporter_create_fp(spx_metric_t focus, int show_inclusive,
+                                                int show_relative, size_t limit, int live_mode,
+                                                int use_color, spx_error_t *error);
 
 /**
  * @brief Create a trace reporter (convenience function)
@@ -200,11 +189,8 @@ spx_profiler_reporter_t *spx_reporter_create_fp(
  * @param error Output error on failure
  * @return New trace reporter, or NULL on failure
  */
-spx_profiler_reporter_t *spx_reporter_create_trace(
-    const char *file_name,
-    int safe_mode,
-    spx_error_t *error
-);
+spx_profiler_reporter_t *spx_reporter_create_trace(const char *file_name, int safe_mode,
+                                                   spx_error_t *error);
 
 /**
  * @brief Create a null reporter (for testing)
@@ -233,10 +219,7 @@ void spx_reporter_config_init(spx_reporter_config_t *config, spx_reporter_type_t
  * @param error Output validation error
  * @return 0 if valid, -1 if invalid
  */
-int spx_reporter_config_validate(
-    const spx_reporter_config_t *config,
-    spx_error_t *error
-);
+int spx_reporter_config_validate(const spx_reporter_config_t *config, spx_error_t *error);
 
 /*============================================================================
  * Reporter Extension Interface
@@ -247,10 +230,8 @@ int spx_reporter_config_validate(
  *
  * Used for registering custom reporter types.
  */
-typedef spx_profiler_reporter_t *(*spx_reporter_factory_func_t)(
-    const void *config,
-    spx_error_t *error
-);
+typedef spx_profiler_reporter_t *(*spx_reporter_factory_func_t)(const void *config,
+                                                                spx_error_t *error);
 
 /**
  * @brief Register a custom reporter factory
@@ -262,11 +243,7 @@ typedef spx_profiler_reporter_t *(*spx_reporter_factory_func_t)(
  *
  * This allows extending SPX with custom reporter implementations.
  */
-int spx_reporter_register(
-    spx_reporter_type_t type,
-    const spx_reporter_info_t *info,
-    spx_reporter_factory_func_t factory,
-    spx_error_t *error
-);
+int spx_reporter_register(spx_reporter_type_t type, const spx_reporter_info_t *info,
+                          spx_reporter_factory_func_t factory, spx_error_t *error);
 
 #endif /* SPX_REPORTER_FACTORY_H_DEFINED */

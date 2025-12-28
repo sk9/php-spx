@@ -43,25 +43,25 @@
 
 /* GCC/Clang attributes */
 #ifdef __GNUC__
-#define SPX_LIKELY(x)       __builtin_expect(!!(x), 1)
-#define SPX_UNLIKELY(x)     __builtin_expect(!!(x), 0)
-#define SPX_UNUSED          __attribute__((unused))
-#define SPX_NORETURN        __attribute__((noreturn))
-#define SPX_PURE            __attribute__((pure))
-#define SPX_CONST           __attribute__((const))
-#define SPX_MALLOC          __attribute__((malloc))
-#define SPX_HOT             __attribute__((hot))
-#define SPX_COLD            __attribute__((cold))
-#define SPX_NOINLINE        __attribute__((noinline))
-#define SPX_ALWAYS_INLINE   __attribute__((always_inline)) inline
-#define SPX_PACKED          __attribute__((packed))
-#define SPX_ALIGNED(n)      __attribute__((aligned(n)))
+#define SPX_LIKELY(x) __builtin_expect(!!(x), 1)
+#define SPX_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#define SPX_UNUSED __attribute__((unused))
+#define SPX_NORETURN __attribute__((noreturn))
+#define SPX_PURE __attribute__((pure))
+#define SPX_CONST __attribute__((const))
+#define SPX_MALLOC __attribute__((malloc))
+#define SPX_HOT __attribute__((hot))
+#define SPX_COLD __attribute__((cold))
+#define SPX_NOINLINE __attribute__((noinline))
+#define SPX_ALWAYS_INLINE __attribute__((always_inline)) inline
+#define SPX_PACKED __attribute__((packed))
+#define SPX_ALIGNED(n) __attribute__((aligned(n)))
 #define SPX_DEPRECATED(msg) __attribute__((deprecated(msg)))
-#define SPX_WARN_UNUSED     __attribute__((warn_unused_result))
-#define SPX_PRINTF(f, a)    __attribute__((format(printf, f, a)))
+#define SPX_WARN_UNUSED __attribute__((warn_unused_result))
+#define SPX_PRINTF(f, a) __attribute__((format(printf, f, a)))
 #else
-#define SPX_LIKELY(x)       (x)
-#define SPX_UNLIKELY(x)     (x)
+#define SPX_LIKELY(x) (x)
+#define SPX_UNLIKELY(x) (x)
 #define SPX_UNUSED
 #define SPX_NORETURN
 #define SPX_PURE
@@ -70,7 +70,7 @@
 #define SPX_HOT
 #define SPX_COLD
 #define SPX_NOINLINE
-#define SPX_ALWAYS_INLINE   inline
+#define SPX_ALWAYS_INLINE inline
 #define SPX_PACKED
 #define SPX_ALIGNED(n)
 #define SPX_DEPRECATED(msg)
@@ -103,7 +103,7 @@
  * @param type Struct type
  * @param member Member name
  */
-#define SPX_OFFSET_OF(type, member) ((size_t)&((type *)0)->member)
+#define SPX_OFFSET_OF(type, member) ((size_t) & ((type *) 0)->member)
 
 /**
  * @brief Get container from member pointer
@@ -111,8 +111,8 @@
  * @param type Container type
  * @param member Member name
  */
-#define SPX_CONTAINER_OF(ptr, type, member) \
-    ((type *)((char *)(ptr) - SPX_OFFSET_OF(type, member)))
+#define SPX_CONTAINER_OF(ptr, type, member)                                                        \
+    ((type *) ((char *) (ptr) - SPX_OFFSET_OF(type, member)))
 
 /*============================================================================
  * Numeric Utilities
@@ -200,9 +200,11 @@ static inline int spx_safe_add_size(size_t a, size_t b, size_t *result)
  */
 static inline size_t spx_strlen_safe(const char *s)
 {
-    if (!s) return 0;
+    if (!s)
+        return 0;
     size_t len = 0;
-    while (s[len]) len++;
+    while (s[len])
+        len++;
     return len;
 }
 
@@ -220,15 +222,18 @@ static inline int spx_str_empty(const char *s)
  */
 static inline int spx_strcmp_safe(const char *a, const char *b)
 {
-    if (a == b) return 0;
-    if (!a) return -1;
-    if (!b) return 1;
+    if (a == b)
+        return 0;
+    if (!a)
+        return -1;
+    if (!b)
+        return 1;
 
     while (*a && *b && *a == *b) {
         a++;
         b++;
     }
-    return (unsigned char)*a - (unsigned char)*b;
+    return (unsigned char) *a - (unsigned char) *b;
 }
 
 /*============================================================================
@@ -286,7 +291,7 @@ static inline size_t spx_align_down(size_t size, size_t align)
  */
 static inline int spx_is_aligned(const void *ptr, size_t align)
 {
-    return ((uintptr_t)ptr & (align - 1)) == 0;
+    return ((uintptr_t) ptr & (align - 1)) == 0;
 }
 
 /*============================================================================
@@ -297,20 +302,21 @@ static inline int spx_is_aligned(const void *ptr, size_t align)
 #include <stdio.h>
 #include <stdlib.h>
 
-#define SPX_ASSERT(cond) do { \
-    if (SPX_UNLIKELY(!(cond))) { \
-        fprintf(stderr, "SPX assertion failed: %s at %s:%d in %s\n", \
-                #cond, __FILE__, __LINE__, __func__); \
-        abort(); \
-    } \
-} while (0)
+#define SPX_ASSERT(cond)                                                                           \
+    do {                                                                                           \
+        if (SPX_UNLIKELY(!(cond))) {                                                               \
+            fprintf(stderr, "SPX assertion failed: %s at %s:%d in %s\n", #cond, __FILE__,          \
+                    __LINE__, __func__);                                                           \
+            abort();                                                                               \
+        }                                                                                          \
+    } while (0)
 
-#define SPX_DEBUG_LOG(fmt, ...) \
+#define SPX_DEBUG_LOG(fmt, ...)                                                                    \
     fprintf(stderr, "[SPX DEBUG] %s:%d: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 
 #else
-#define SPX_ASSERT(cond) ((void)0)
-#define SPX_DEBUG_LOG(fmt, ...) ((void)0)
+#define SPX_ASSERT(cond) ((void) 0)
+#define SPX_DEBUG_LOG(fmt, ...) ((void) 0)
 #endif
 
 /*============================================================================
@@ -332,13 +338,13 @@ static inline int spx_is_aligned(const void *ptr, size_t align)
  * }
  * @endcode
  */
-#define SPX_RESULT_DEFINE(name, type) \
-    typedef struct { \
-        int ok; \
-        union { \
-            type value; \
-            const char *error; \
-        }; \
+#define SPX_RESULT_DEFINE(name, type)                                                              \
+    typedef struct {                                                                               \
+        int ok;                                                                                    \
+        union {                                                                                    \
+            type value;                                                                            \
+            const char *error;                                                                     \
+        };                                                                                         \
     } name##_t
 
 /*============================================================================
@@ -360,10 +366,10 @@ static inline int spx_is_aligned(const void *ptr, size_t align)
  * }
  * @endcode
  */
-#define SPX_OPTIONAL_DEFINE(name, type) \
-    typedef struct { \
-        int has_value; \
-        type value; \
+#define SPX_OPTIONAL_DEFINE(name, type)                                                            \
+    typedef struct {                                                                               \
+        int has_value;                                                                             \
+        type value;                                                                                \
     } name##_t
 
 /*============================================================================
@@ -373,24 +379,26 @@ static inline int spx_is_aligned(const void *ptr, size_t align)
 /**
  * @brief Iterate over array elements
  */
-#define SPX_FOREACH(arr, len, type, var, body) do { \
-    size_t _i; \
-    for (_i = 0; _i < (len); _i++) { \
-        type var = (arr)[_i]; \
-        body \
-    } \
-} while (0)
+#define SPX_FOREACH(arr, len, type, var, body)                                                     \
+    do {                                                                                           \
+        size_t _i;                                                                                 \
+        for (_i = 0; _i < (len); _i++) {                                                           \
+            type var = (arr)[_i];                                                                  \
+            body                                                                                   \
+        }                                                                                          \
+    } while (0)
 
 /**
  * @brief Iterate with index
  */
-#define SPX_FOREACH_IDX(arr, len, type, var, idx, body) do { \
-    size_t idx; \
-    for (idx = 0; idx < (len); idx++) { \
-        type var = (arr)[idx]; \
-        body \
-    } \
-} while (0)
+#define SPX_FOREACH_IDX(arr, len, type, var, idx, body)                                            \
+    do {                                                                                           \
+        size_t idx;                                                                                \
+        for (idx = 0; idx < (len); idx++) {                                                        \
+            type var = (arr)[idx];                                                                 \
+            body                                                                                   \
+        }                                                                                          \
+    } while (0)
 
 /*============================================================================
  * Cleanup Helpers (RAII-style for C)
@@ -438,10 +446,8 @@ static inline void spx_auto_free_ptr(void *ptr)
 
 #define SPX_VERSION_STRING "0.6.0"
 
-#define SPX_MAKE_VERSION(major, minor, patch) \
-    (((major) << 16) | ((minor) << 8) | (patch))
+#define SPX_MAKE_VERSION(major, minor, patch) (((major) << 16) | ((minor) << 8) | (patch))
 
-#define SPX_VERSION \
-    SPX_MAKE_VERSION(SPX_VERSION_MAJOR, SPX_VERSION_MINOR, SPX_VERSION_PATCH)
+#define SPX_VERSION SPX_MAKE_VERSION(SPX_VERSION_MAJOR, SPX_VERSION_MINOR, SPX_VERSION_PATCH)
 
 #endif /* SPX_COMMON_H_DEFINED */

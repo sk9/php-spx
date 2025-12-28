@@ -151,10 +151,9 @@ size_t spx_str_builder_append_double(spx_str_builder_t *str_builder, double d, s
 
     for (i = 0; i < c / 2; i++) {
         const size_t opp = c - i - 1;
-
-        p[i] ^= p[opp];
-        p[opp] ^= p[i];
-        p[i] ^= p[opp];
+        const char tmp = p[i];
+        p[i] = p[opp];
+        p[opp] = tmp;
     }
 
     str_builder->size += c;
@@ -208,10 +207,9 @@ size_t spx_str_builder_append_long(spx_str_builder_t *str_builder, long l)
     size_t i;
     for (i = 0; i < c / 2; i++) {
         const size_t opp = c - i - 1;
-
-        p[i] ^= p[opp];
-        p[opp] ^= p[i];
-        p[i] ^= p[opp];
+        const char tmp = p[i];
+        p[i] = p[opp];
+        p[opp] = tmp;
     }
 
     str_builder->size += c;

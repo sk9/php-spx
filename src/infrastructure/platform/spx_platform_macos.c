@@ -73,7 +73,7 @@ static size_t macos_get_cpu_time_ns(void)
 {
     struct timespec ts;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts);
-    return (size_t)ts.tv_sec * 1000000000ULL + (size_t)ts.tv_nsec;
+    return (size_t) ts.tv_sec * 1000000000ULL + (size_t) ts.tv_nsec;
 }
 
 static size_t macos_get_timestamp(void)
@@ -91,12 +91,10 @@ static size_t macos_timestamp_to_ns(size_t start, size_t end)
     return elapsed * macos_ctx.timebase_info.numer / macos_ctx.timebase_info.denom;
 }
 
-static const spx_time_provider_t macos_time_provider = {
-    .get_wall_time_ns = macos_get_wall_time_ns,
-    .get_cpu_time_ns = macos_get_cpu_time_ns,
-    .get_timestamp = macos_get_timestamp,
-    .timestamp_to_ns = macos_timestamp_to_ns
-};
+static const spx_time_provider_t macos_time_provider = {.get_wall_time_ns = macos_get_wall_time_ns,
+                                                        .get_cpu_time_ns = macos_get_cpu_time_ns,
+                                                        .get_timestamp = macos_get_timestamp,
+                                                        .timestamp_to_ns = macos_timestamp_to_ns};
 
 /*============================================================================
  * Memory Provider Implementation
@@ -114,14 +112,10 @@ static int macos_memory_get_stats(spx_memory_stats_t *stats, spx_error_t *error)
     task_vm_info_data_t vm_info;
     mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
 
-    kern_return_t kr = task_info(mach_task_self(),
-                                 TASK_VM_INFO,
-                                 (task_info_t)&vm_info,
-                                 &count);
+    kern_return_t kr = task_info(mach_task_self(), TASK_VM_INFO, (task_info_t) &vm_info, &count);
 
     if (kr != KERN_SUCCESS) {
-        SPX_ERROR_SET(error, SPX_ERR_INTERNAL,
-                      "task_info failed: %s", mach_error_string(kr));
+        SPX_ERROR_SET(error, SPX_ERR_INTERNAL, "task_info failed: %s", mach_error_string(kr));
         return -1;
     }
 
@@ -138,10 +132,7 @@ static size_t macos_memory_get_rss(void)
     task_vm_info_data_t vm_info;
     mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
 
-    kern_return_t kr = task_info(mach_task_self(),
-                                 TASK_VM_INFO,
-                                 (task_info_t)&vm_info,
-                                 &count);
+    kern_return_t kr = task_info(mach_task_self(), TASK_VM_INFO, (task_info_t) &vm_info, &count);
 
     if (kr != KERN_SUCCESS) {
         return 0;
@@ -150,10 +141,8 @@ static size_t macos_memory_get_rss(void)
     return vm_info.phys_footprint;
 }
 
-static const spx_memory_provider_t macos_memory_provider = {
-    .get_stats = macos_memory_get_stats,
-    .get_rss = macos_memory_get_rss
-};
+static const spx_memory_provider_t macos_memory_provider = {.get_stats = macos_memory_get_stats,
+                                                            .get_rss = macos_memory_get_rss};
 
 /*============================================================================
  * I/O Provider Implementation
@@ -181,10 +170,8 @@ static void macos_io_get_bytes(size_t *bytes_in, size_t *bytes_out)
     *bytes_out = 0;
 }
 
-static const spx_io_provider_t macos_io_provider = {
-    .get_stats = macos_io_get_stats,
-    .get_bytes = macos_io_get_bytes
-};
+static const spx_io_provider_t macos_io_provider = {.get_stats = macos_io_get_stats,
+                                                    .get_bytes = macos_io_get_bytes};
 
 /*============================================================================
  * Console Provider Implementation
@@ -231,15 +218,14 @@ static const spx_console_provider_t macos_console_provider = {
     .is_tty = macos_console_is_tty,
     .supports_ansi = macos_console_supports_ansi,
     .get_width = macos_console_get_width,
-    .get_height = macos_console_get_height
-};
+    .get_height = macos_console_get_height};
 
 /*============================================================================
  * File System Provider Implementation
  *============================================================================*/
 
-static int macos_fs_get_info(const char *path, spx_file_info_t *info,
-                             int follow_symlinks, spx_error_t *error)
+static int macos_fs_get_info(const char *path, spx_file_info_t *info, int follow_symlinks,
+                             spx_error_t *error)
 {
     if (!path || !info) {
         SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "NULL path or info pointer");
@@ -270,16 +256,15 @@ static int macos_fs_mkdir(const char *path, unsigned int mode, spx_error_t *erro
     }
 
     if (mkdir(path, mode) != 0 && errno != EEXIST) {
-        SPX_ERROR_SET(error, SPX_ERR_DIR_CREATE_FAILED,
-                      "Cannot create directory '%s': %s", path, strerror(errno));
+        SPX_ERROR_SET(error, SPX_ERR_DIR_CREATE_FAILED, "Cannot create directory '%s': %s", path,
+                      strerror(errno));
         return -1;
     }
 
     return 0;
 }
 
-static int macos_fs_realpath(const char *path, char *resolved,
-                             size_t size, spx_error_t *error)
+static int macos_fs_realpath(const char *path, char *resolved, size_t size, spx_error_t *error)
 {
     if (!path || !resolved || size == 0) {
         SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "Invalid parameters");
@@ -288,8 +273,8 @@ static int macos_fs_realpath(const char *path, char *resolved,
 
     char *result = realpath(path, NULL);
     if (!result) {
-        SPX_ERROR_SET(error, SPX_ERR_FILE_NOT_FOUND,
-                      "Cannot resolve path '%s': %s", path, strerror(errno));
+        SPX_ERROR_SET(error, SPX_ERR_FILE_NOT_FOUND, "Cannot resolve path '%s': %s", path,
+                      strerror(errno));
         return -1;
     }
 
@@ -306,10 +291,7 @@ static int macos_fs_realpath(const char *path, char *resolved,
 }
 
 static const spx_fs_provider_t macos_fs_provider = {
-    .get_info = macos_fs_get_info,
-    .mkdir = macos_fs_mkdir,
-    .realpath = macos_fs_realpath
-};
+    .get_info = macos_fs_get_info, .mkdir = macos_fs_mkdir, .realpath = macos_fs_realpath};
 
 /*============================================================================
  * Platform Info and Interface
@@ -321,17 +303,14 @@ static const spx_platform_info_t macos_platform_info = {
                     SPX_PLATFORM_CAP_MEMORY_RSS | SPX_PLATFORM_CAP_MACH_PORTS |
                     SPX_PLATFORM_CAP_TTY | SPX_PLATFORM_CAP_ANSI_COLORS,
     .name = "macOS",
-    .version = NULL
-};
+    .version = NULL};
 
-static const spx_platform_t macos_platform = {
-    .info = &macos_platform_info,
-    .time = &macos_time_provider,
-    .memory = &macos_memory_provider,
-    .io = &macos_io_provider,
-    .console = &macos_console_provider,
-    .fs = &macos_fs_provider
-};
+static const spx_platform_t macos_platform = {.info = &macos_platform_info,
+                                              .time = &macos_time_provider,
+                                              .memory = &macos_memory_provider,
+                                              .io = &macos_io_provider,
+                                              .console = &macos_console_provider,
+                                              .fs = &macos_fs_provider};
 
 static int platform_initialized = 0;
 
@@ -341,7 +320,7 @@ static int platform_initialized = 0;
 
 int spx_platform_init(spx_error_t *error)
 {
-    (void)error; /* Unused on macOS */
+    (void) error; /* Unused on macOS */
 
     if (platform_initialized) {
         return 0;

@@ -23,6 +23,34 @@
 #include "spx_reporter_trace.h"
 #include "spx_utils.h"
 
+/**
+ * @brief Check if path contains traversal sequences
+ * @param path Path to check
+ * @return 1 if path is safe, 0 if it contains traversal attempts
+ */
+static int is_safe_trace_path(const char *path)
+{
+    if (!path) {
+        return 0;
+    }
+
+    /* Check for directory traversal patterns */
+    if (strstr(path, "..") != NULL) {
+        return 0;
+    }
+
+    /* Check for null bytes (path truncation attack) */
+    size_t len = strlen(path);
+    size_t i;
+    for (i = 0; i < len; i++) {
+        if (path[i] == '\0') {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 #define BUFFER_CAPACITY 16384
 
 typedef struct {
@@ -72,6 +100,13 @@ spx_profiler_reporter_t *spx_reporter_trace_create(const char *file_name, int sa
     reporter->base.destroy = trace_destroy;
 
     reporter->file_name = file_name ? file_name : "spx_trace.txt.gz";
+
+    /* Validate path to prevent directory traversal attacks */
+    if (!is_safe_trace_path(reporter->file_name)) {
+        fprintf(stderr, "SPX: Invalid trace file path (potential path traversal)\n");
+        free(reporter);
+        return NULL;
+    }
 
     reporter->safe = safe;
 
@@ -215,8 +250,14 @@ static void print_row(spx_output_stream_t *output, const char *prefix,
 
     spx_fmt_row_add_ncell(fmt_row, 1, SPX_FMT_QUANTITY, depth + 1);
 
+    /* Limit indentation depth to prevent format string buffer overflow */
+    size_t indent_depth = depth + 1;
+    if (indent_depth > 100) {
+        indent_depth = 100; /* Cap indentation at 100 levels */
+    }
+
     char format[32];
-    snprintf(format, sizeof(format), "%%%zus%%s%%s%%s", depth + 1);
+    snprintf(format, sizeof(format), "%%%zus%%s%%s%%s", indent_depth);
 
     char func_name[256];
     snprintf(func_name, sizeof(func_name), format, prefix, function->class_name,

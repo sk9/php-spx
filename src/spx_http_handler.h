@@ -78,17 +78,17 @@ typedef enum {
  * @brief HTTP request information
  */
 typedef struct {
-    spx_http_method_t method;     /**< Request method */
-    const char *uri;              /**< Request URI */
-    const char *query_string;     /**< Query string (after ?) */
-    const char *content_type;     /**< Content-Type header */
-    const char *accept;           /**< Accept header */
-    const char *accept_encoding;  /**< Accept-Encoding header */
-    const char *if_none_match;    /**< If-None-Match header (for caching) */
-    const char *if_modified_since;/**< If-Modified-Since header */
-    const char *origin;           /**< Origin header (for CORS) */
-    size_t content_length;        /**< Content-Length header */
-    const void *body;             /**< Request body */
+    spx_http_method_t method;      /**< Request method */
+    const char *uri;               /**< Request URI */
+    const char *query_string;      /**< Query string (after ?) */
+    const char *content_type;      /**< Content-Type header */
+    const char *accept;            /**< Accept header */
+    const char *accept_encoding;   /**< Accept-Encoding header */
+    const char *if_none_match;     /**< If-None-Match header (for caching) */
+    const char *if_modified_since; /**< If-Modified-Since header */
+    const char *origin;            /**< Origin header (for CORS) */
+    size_t content_length;         /**< Content-Length header */
+    const void *body;              /**< Request body */
 } spx_http_request_t;
 
 /*============================================================================
@@ -118,10 +118,8 @@ void spx_http_response_destroy(spx_http_response_t *response);
  * @param status HTTP status code
  * @return Same response for chaining
  */
-spx_http_response_t *spx_http_response_status(
-    spx_http_response_t *response,
-    spx_http_status_t status
-);
+spx_http_response_t *spx_http_response_status(spx_http_response_t *response,
+                                              spx_http_status_t status);
 
 /**
  * @brief Set a response header
@@ -130,11 +128,8 @@ spx_http_response_t *spx_http_response_status(
  * @param value Header value
  * @return Same response for chaining
  */
-spx_http_response_t *spx_http_response_header(
-    spx_http_response_t *response,
-    const char *name,
-    const char *value
-);
+spx_http_response_t *spx_http_response_header(spx_http_response_t *response, const char *name,
+                                              const char *value);
 
 /**
  * @brief Set Content-Type header
@@ -142,10 +137,8 @@ spx_http_response_t *spx_http_response_header(
  * @param content_type Content type value
  * @return Same response for chaining
  */
-spx_http_response_t *spx_http_response_content_type(
-    spx_http_response_t *response,
-    const char *content_type
-);
+spx_http_response_t *spx_http_response_content_type(spx_http_response_t *response,
+                                                    const char *content_type);
 
 /**
  * @brief Set response body
@@ -154,11 +147,8 @@ spx_http_response_t *spx_http_response_content_type(
  * @param length Body length
  * @return Same response for chaining
  */
-spx_http_response_t *spx_http_response_body(
-    spx_http_response_t *response,
-    const void *data,
-    size_t length
-);
+spx_http_response_t *spx_http_response_body(spx_http_response_t *response, const void *data,
+                                            size_t length);
 
 /**
  * @brief Set response body from string
@@ -166,10 +156,7 @@ spx_http_response_t *spx_http_response_body(
  * @param text Text body (null-terminated)
  * @return Same response for chaining
  */
-spx_http_response_t *spx_http_response_body_text(
-    spx_http_response_t *response,
-    const char *text
-);
+spx_http_response_t *spx_http_response_body_text(spx_http_response_t *response, const char *text);
 
 /**
  * @brief Send response body from file
@@ -178,11 +165,8 @@ spx_http_response_t *spx_http_response_body_text(
  * @param error Output error on failure
  * @return Same response for chaining
  */
-spx_http_response_t *spx_http_response_body_file(
-    spx_http_response_t *response,
-    const char *file_path,
-    spx_error_t *error
-);
+spx_http_response_t *spx_http_response_body_file(spx_http_response_t *response,
+                                                 const char *file_path, spx_error_t *error);
 
 /**
  * @brief Enable gzip compression for response
@@ -190,10 +174,7 @@ spx_http_response_t *spx_http_response_body_file(
  * @param enabled 1 to enable, 0 to disable
  * @return Same response for chaining
  */
-spx_http_response_t *spx_http_response_gzip(
-    spx_http_response_t *response,
-    int enabled
-);
+spx_http_response_t *spx_http_response_gzip(spx_http_response_t *response, int enabled);
 
 /**
  * @brief Add CORS headers
@@ -201,10 +182,7 @@ spx_http_response_t *spx_http_response_gzip(
  * @param origin Allowed origin (or "*")
  * @return Same response for chaining
  */
-spx_http_response_t *spx_http_response_cors(
-    spx_http_response_t *response,
-    const char *origin
-);
+spx_http_response_t *spx_http_response_cors(spx_http_response_t *response, const char *origin);
 
 /**
  * @brief Set cache control headers
@@ -213,11 +191,8 @@ spx_http_response_t *spx_http_response_cors(
  * @param etag ETag value (or NULL)
  * @return Same response for chaining
  */
-spx_http_response_t *spx_http_response_cache(
-    spx_http_response_t *response,
-    int max_age,
-    const char *etag
-);
+spx_http_response_t *spx_http_response_cache(spx_http_response_t *response, int max_age,
+                                             const char *etag);
 
 /**
  * @brief Finalize and send the response
@@ -239,12 +214,9 @@ int spx_http_response_send(spx_http_response_t *response, spx_error_t *error);
  * @param error Output error on failure
  * @return 0 on success (response sent), -1 on error, 1 if not handled
  */
-typedef int (*spx_http_handler_func_t)(
-    const spx_http_request_t *request,
-    spx_http_response_t *response,
-    void *context,
-    spx_error_t *error
-);
+typedef int (*spx_http_handler_func_t)(const spx_http_request_t *request,
+                                       spx_http_response_t *response, void *context,
+                                       spx_error_t *error);
 
 /**
  * @brief Route definition for HTTP routing
@@ -281,11 +253,8 @@ void spx_http_router_destroy(spx_http_router_t *router);
  * @param error Output error on failure
  * @return 0 on success, -1 on failure
  */
-int spx_http_router_add_route(
-    spx_http_router_t *router,
-    const spx_http_route_t *route,
-    spx_error_t *error
-);
+int spx_http_router_add_route(spx_http_router_t *router, const spx_http_route_t *route,
+                              spx_error_t *error);
 
 /**
  * @brief Add a GET route
@@ -296,13 +265,8 @@ int spx_http_router_add_route(
  * @param error Output error on failure
  * @return 0 on success, -1 on failure
  */
-int spx_http_router_get(
-    spx_http_router_t *router,
-    const char *pattern,
-    spx_http_handler_func_t handler,
-    void *context,
-    spx_error_t *error
-);
+int spx_http_router_get(spx_http_router_t *router, const char *pattern,
+                        spx_http_handler_func_t handler, void *context, spx_error_t *error);
 
 /**
  * @brief Add a POST route
@@ -313,13 +277,8 @@ int spx_http_router_get(
  * @param error Output error on failure
  * @return 0 on success, -1 on failure
  */
-int spx_http_router_post(
-    spx_http_router_t *router,
-    const char *pattern,
-    spx_http_handler_func_t handler,
-    void *context,
-    spx_error_t *error
-);
+int spx_http_router_post(spx_http_router_t *router, const char *pattern,
+                         spx_http_handler_func_t handler, void *context, spx_error_t *error);
 
 /**
  * @brief Add a DELETE route
@@ -330,13 +289,8 @@ int spx_http_router_post(
  * @param error Output error on failure
  * @return 0 on success, -1 on failure
  */
-int spx_http_router_delete(
-    spx_http_router_t *router,
-    const char *pattern,
-    spx_http_handler_func_t handler,
-    void *context,
-    spx_error_t *error
-);
+int spx_http_router_delete(spx_http_router_t *router, const char *pattern,
+                           spx_http_handler_func_t handler, void *context, spx_error_t *error);
 
 /**
  * @brief Handle an incoming request
@@ -345,11 +299,8 @@ int spx_http_router_delete(
  * @param error Output error on failure
  * @return 0 on success, -1 on error
  */
-int spx_http_router_handle(
-    spx_http_router_t *router,
-    const spx_http_request_t *request,
-    spx_error_t *error
-);
+int spx_http_router_handle(spx_http_router_t *router, const spx_http_request_t *request,
+                           spx_error_t *error);
 
 /*============================================================================
  * Utility Functions
@@ -390,11 +341,7 @@ const char *spx_http_detect_content_type(const char *filename);
  * @param error Output error on failure
  * @return 0 if safe, -1 if unsafe
  */
-int spx_http_validate_path(
-    const char *path,
-    const char *base_dir,
-    spx_error_t *error
-);
+int spx_http_validate_path(const char *path, const char *base_dir, spx_error_t *error);
 
 /*============================================================================
  * Pre-built Handlers
@@ -406,10 +353,7 @@ int spx_http_validate_path(
  * @param index_file Index file for directories (or NULL)
  * @return Handler function
  */
-spx_http_handler_func_t spx_http_handler_static_files(
-    const char *base_dir,
-    const char *index_file
-);
+spx_http_handler_func_t spx_http_handler_static_files(const char *base_dir, const char *index_file);
 
 /**
  * @brief Create a JSON API handler

@@ -34,52 +34,43 @@
  *============================================================================*/
 
 static const spx_reporter_info_t reporter_info_table[] = {
-    {
-        .type = SPX_REPORTER_FULL,
-        .name = "full",
-        .description = "Full JSON report with call graph for web UI",
-        .requires_file = 1,
-        .requires_terminal = 0,
-        .supports_live = 0
-    },
-    {
-        .type = SPX_REPORTER_FLAT_PROFILE,
-        .name = "fp",
-        .description = "Flat profile summary for CLI",
-        .requires_file = 0,
-        .requires_terminal = 1,
-        .supports_live = 1
-    },
-    {
-        .type = SPX_REPORTER_TRACE,
-        .name = "trace",
-        .description = "Call trace output",
-        .requires_file = 0,
-        .requires_terminal = 0,
-        .supports_live = 0
-    },
-    {
-        .type = SPX_REPORTER_NULL,
-        .name = "null",
-        .description = "No-op reporter for testing and benchmarking",
-        .requires_file = 0,
-        .requires_terminal = 0,
-        .supports_live = 0
-    }
-};
+    {.type = SPX_REPORTER_FULL,
+     .name = "full",
+     .description = "Full JSON report with call graph for web UI",
+     .requires_file = 1,
+     .requires_terminal = 0,
+     .supports_live = 0},
+    {.type = SPX_REPORTER_FLAT_PROFILE,
+     .name = "fp",
+     .description = "Flat profile summary for CLI",
+     .requires_file = 0,
+     .requires_terminal = 1,
+     .supports_live = 1},
+    {.type = SPX_REPORTER_TRACE,
+     .name = "trace",
+     .description = "Call trace output",
+     .requires_file = 0,
+     .requires_terminal = 0,
+     .supports_live = 0},
+    {.type = SPX_REPORTER_NULL,
+     .name = "null",
+     .description = "No-op reporter for testing and benchmarking",
+     .requires_file = 0,
+     .requires_terminal = 0,
+     .supports_live = 0}};
 
-static const size_t REPORTER_INFO_COUNT = sizeof(reporter_info_table) / sizeof(reporter_info_table[0]);
+static const size_t REPORTER_INFO_COUNT =
+    sizeof(reporter_info_table) / sizeof(reporter_info_table[0]);
 
 /*============================================================================
  * Null Reporter Implementation
  *============================================================================*/
 
-static spx_profiler_reporter_cost_t null_notify(
-    spx_profiler_reporter_t *reporter,
-    const spx_profiler_event_t *event)
+static spx_profiler_reporter_cost_t null_notify(spx_profiler_reporter_t *reporter,
+                                                const spx_profiler_event_t *event)
 {
-    (void)reporter;
-    (void)event;
+    (void) reporter;
+    (void) event;
     return SPX_PROFILER_REPORTER_COST_LIGHT;
 }
 
@@ -164,9 +155,7 @@ void spx_reporter_config_init(spx_reporter_config_t *config, spx_reporter_type_t
     }
 }
 
-int spx_reporter_config_validate(
-    const spx_reporter_config_t *config,
-    spx_error_t *error)
+int spx_reporter_config_validate(const spx_reporter_config_t *config, spx_error_t *error)
 {
     if (!config) {
         SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "NULL configuration");
@@ -176,21 +165,19 @@ int spx_reporter_config_validate(
     switch (config->type) {
     case SPX_REPORTER_FULL:
         if (!config->full.data_dir || config->full.data_dir[0] == '\0') {
-            SPX_ERROR_SET(error, SPX_ERR_INVALID_CONFIG,
-                          "Full reporter requires data_dir");
+            SPX_ERROR_SET(error, SPX_ERR_INVALID_CONFIG, "Full reporter requires data_dir");
             return -1;
         }
         break;
 
     case SPX_REPORTER_FLAT_PROFILE:
         if (config->fp.focus >= SPX_METRIC_COUNT) {
-            SPX_ERROR_SET(error, SPX_ERR_INVALID_CONFIG,
-                          "Invalid focus metric: %d", config->fp.focus);
+            SPX_ERROR_SET(error, SPX_ERR_INVALID_CONFIG, "Invalid focus metric: %d",
+                          config->fp.focus);
             return -1;
         }
         if (config->fp.limit == 0) {
-            SPX_ERROR_SET(error, SPX_ERR_INVALID_CONFIG,
-                          "Flat profile limit must be > 0");
+            SPX_ERROR_SET(error, SPX_ERR_INVALID_CONFIG, "Flat profile limit must be > 0");
             return -1;
         }
         break;
@@ -204,8 +191,7 @@ int spx_reporter_config_validate(
         break;
 
     default:
-        SPX_ERROR_SET(error, SPX_ERR_INVALID_CONFIG,
-                      "Unknown reporter type: %d", config->type);
+        SPX_ERROR_SET(error, SPX_ERR_INVALID_CONFIG, "Unknown reporter type: %d", config->type);
         return -1;
     }
 
@@ -216,9 +202,8 @@ int spx_reporter_config_validate(
  * Factory Functions
  *============================================================================*/
 
-spx_profiler_reporter_t *spx_reporter_create(
-    const spx_reporter_config_t *config,
-    spx_error_t *error)
+spx_profiler_reporter_t *spx_reporter_create(const spx_reporter_config_t *config,
+                                             spx_error_t *error)
 {
     if (!config) {
         SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "NULL configuration");
@@ -235,34 +220,23 @@ spx_profiler_reporter_t *spx_reporter_create(
         return spx_reporter_full_create(config->full.data_dir);
 
     case SPX_REPORTER_FLAT_PROFILE:
-        return spx_reporter_fp_create(
-            config->fp.focus,
-            config->fp.show_inclusive,
-            config->fp.show_relative,
-            config->fp.limit,
-            config->fp.live_mode,
-            config->fp.use_color
-        );
+        return spx_reporter_fp_create(config->fp.focus, config->fp.show_inclusive,
+                                      config->fp.show_relative, config->fp.limit,
+                                      config->fp.live_mode, config->fp.use_color);
 
     case SPX_REPORTER_TRACE:
-        return spx_reporter_trace_create(
-            config->trace.file_name,
-            config->trace.safe_mode
-        );
+        return spx_reporter_trace_create(config->trace.file_name, config->trace.safe_mode);
 
     case SPX_REPORTER_NULL:
         return spx_reporter_create_null(error);
 
     default:
-        SPX_ERROR_SET(error, SPX_ERR_INVALID_CONFIG,
-                      "Unknown reporter type: %d", config->type);
+        SPX_ERROR_SET(error, SPX_ERR_INVALID_CONFIG, "Unknown reporter type: %d", config->type);
         return NULL;
     }
 }
 
-spx_profiler_reporter_t *spx_reporter_create_full(
-    const char *data_dir,
-    spx_error_t *error)
+spx_profiler_reporter_t *spx_reporter_create_full(const char *data_dir, spx_error_t *error)
 {
     spx_reporter_config_t config;
     spx_reporter_config_init(&config, SPX_REPORTER_FULL);
@@ -270,14 +244,9 @@ spx_profiler_reporter_t *spx_reporter_create_full(
     return spx_reporter_create(&config, error);
 }
 
-spx_profiler_reporter_t *spx_reporter_create_fp(
-    spx_metric_t focus,
-    int show_inclusive,
-    int show_relative,
-    size_t limit,
-    int live_mode,
-    int use_color,
-    spx_error_t *error)
+spx_profiler_reporter_t *spx_reporter_create_fp(spx_metric_t focus, int show_inclusive,
+                                                int show_relative, size_t limit, int live_mode,
+                                                int use_color, spx_error_t *error)
 {
     spx_reporter_config_t config;
     spx_reporter_config_init(&config, SPX_REPORTER_FLAT_PROFILE);
@@ -290,10 +259,8 @@ spx_profiler_reporter_t *spx_reporter_create_fp(
     return spx_reporter_create(&config, error);
 }
 
-spx_profiler_reporter_t *spx_reporter_create_trace(
-    const char *file_name,
-    int safe_mode,
-    spx_error_t *error)
+spx_profiler_reporter_t *spx_reporter_create_trace(const char *file_name, int safe_mode,
+                                                   spx_error_t *error)
 {
     spx_reporter_config_t config;
     spx_reporter_config_init(&config, SPX_REPORTER_TRACE);
@@ -304,7 +271,7 @@ spx_profiler_reporter_t *spx_reporter_create_trace(
 
 spx_profiler_reporter_t *spx_reporter_create_null(spx_error_t *error)
 {
-    (void)error;
+    (void) error;
 
     spx_profiler_reporter_t *reporter = malloc(sizeof(*reporter));
     if (!reporter) {
@@ -331,15 +298,12 @@ static struct {
 
 static size_t custom_reporter_count = 0;
 
-int spx_reporter_register(
-    spx_reporter_type_t type,
-    const spx_reporter_info_t *info,
-    spx_reporter_factory_func_t factory,
-    spx_error_t *error)
+int spx_reporter_register(spx_reporter_type_t type, const spx_reporter_info_t *info,
+                          spx_reporter_factory_func_t factory, spx_error_t *error)
 {
     if (type < SPX_REPORTER_COUNT) {
-        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT,
-                      "Cannot override built-in reporter type %d", type);
+        SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "Cannot override built-in reporter type %d",
+                      type);
         return -1;
     }
 
@@ -349,16 +313,15 @@ int spx_reporter_register(
     }
 
     if (custom_reporter_count >= MAX_CUSTOM_REPORTERS) {
-        SPX_ERROR_SET(error, SPX_ERR_CAPACITY_EXCEEDED,
-                      "Maximum custom reporters reached");
+        SPX_ERROR_SET(error, SPX_ERR_CAPACITY_EXCEEDED, "Maximum custom reporters reached");
         return -1;
     }
 
     /* Check for duplicate */
     for (size_t i = 0; i < custom_reporter_count; i++) {
         if (custom_reporters[i].info.type == type) {
-            SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT,
-                          "Reporter type %d already registered", type);
+            SPX_ERROR_SET(error, SPX_ERR_INVALID_INPUT, "Reporter type %d already registered",
+                          type);
             return -1;
         }
     }
