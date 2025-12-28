@@ -1,0 +1,11 @@
+# Ignore compiled test binaries
+test_*
+!test_*.c
+
+# Ignore coverage files
+*.gcda
+*.gcno
+*.gcov
+
+# Ignore object files
+*.o

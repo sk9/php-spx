@@ -151,7 +151,12 @@ void spx_fmt_row_print(const spx_fmt_row_t *row, spx_output_stream_t *output)
             break;
         }
 
-        const size_t cell_width = row->cells[i].span * 8 + (row->cells[i].span - 1) * 3;
+        /* Limit span to prevent integer overflow in cell width calculation */
+        size_t safe_span = row->cells[i].span;
+        if (safe_span > 100) {
+            safe_span = 100;
+        }
+        const size_t cell_width = safe_span * 8 + (safe_span - 1) * 3;
 
         if (row->cells[i].ansi_fmt) {
             spx_output_stream_printf(output, "%c[%sm", 0x1b, row->cells[i].ansi_fmt);

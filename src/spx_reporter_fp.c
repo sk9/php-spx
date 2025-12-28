@@ -344,21 +344,25 @@ static size_t print_report(fp_reporter_t *reporter, const spx_profiler_event_t *
             double exc = entry->stats.exc.values[i];
             spx_fmt_value_type_t type = spx_metric_info[i].type;
 
+            /* Guard against division by zero when max value is 0 */
+            double max_val = event->max->values[i];
+            if (max_val == 0.0) {
+                max_val = 1.0; /* Avoid division by zero; treat as 100% */
+            }
+
             if (reporter->rel) {
                 type = SPX_FMT_PERCENTAGE;
-                inc /= event->max->values[i];
-                exc /= event->max->values[i];
+                inc /= max_val;
+                exc /= max_val;
             }
 
             const char *inc_ansi_fmt = NULL;
             const char *exc_ansi_fmt = NULL;
 
             if (reporter->color) {
-                inc_ansi_fmt =
-                    get_value_ansi_fmt(entry->stats.inc.values[i] / event->max->values[i]);
+                inc_ansi_fmt = get_value_ansi_fmt(entry->stats.inc.values[i] / max_val);
 
-                exc_ansi_fmt =
-                    get_value_ansi_fmt(entry->stats.exc.values[i] / event->max->values[i]);
+                exc_ansi_fmt = get_value_ansi_fmt(entry->stats.exc.values[i] / max_val);
             }
 
             spx_fmt_row_add_ncellf(fmt_row, 1, type, inc, inc_ansi_fmt);

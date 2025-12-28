@@ -13,7 +13,8 @@ TESTS = test_limits \
         test_metric_values \
         test_string_utils \
         test_string_pool \
-        test_hmap
+        test_hmap \
+        test_common
 
 # Color output
 GREEN = \033[0;32m
@@ -45,6 +46,9 @@ test_hmap: test_hmap.c $(SRC_DIR)/spx_hmap.c
 
 test_call_stack: test_call_stack.c $(SRC_DIR)/spx_call_stack.c $(SRC_DIR)/spx_limits.c
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+test_common: test_common.c
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
 run: all
 	@echo "\n$(GREEN)Running unit tests...$(NC)\n"
