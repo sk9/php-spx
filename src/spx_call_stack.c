@@ -16,7 +16,6 @@
  */
 
 #include "spx_call_stack.h"
-#include "spx_error.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -30,20 +29,17 @@ struct spx_call_stack_t {
 spx_call_stack_t *spx_call_stack_create(size_t capacity)
 {
     if (capacity == 0) {
-        spx_error_set(SPX_ERR_INVALID_CONFIG, "Stack capacity must be > 0");
         return NULL;
     }
 
     spx_call_stack_t *stack = malloc(sizeof(*stack));
     if (!stack) {
-        spx_error_set(SPX_ERR_OUT_OF_MEMORY, "Failed to allocate call stack");
         return NULL;
     }
 
     stack->frames = malloc(capacity * sizeof(spx_php_function_t));
     if (!stack->frames) {
         free(stack);
-        spx_error_set(SPX_ERR_OUT_OF_MEMORY, "Failed to allocate stack frames");
         return NULL;
     }
 
@@ -66,12 +62,10 @@ void spx_call_stack_destroy(spx_call_stack_t *stack)
 int spx_call_stack_push(spx_call_stack_t *stack, const spx_php_function_t *function)
 {
     if (!stack || !function) {
-        spx_error_set(SPX_ERR_INVALID_CONFIG, "Stack and function cannot be NULL");
         return -1;
     }
 
     if (stack->depth >= stack->capacity) {
-        spx_error_set(SPX_ERR_CAPACITY_EXCEEDED, "Call stack capacity exceeded");
         return -1;
     }
 
@@ -84,12 +78,10 @@ int spx_call_stack_push(spx_call_stack_t *stack, const spx_php_function_t *funct
 int spx_call_stack_pop(spx_call_stack_t *stack, spx_php_function_t *function)
 {
     if (!stack) {
-        spx_error_set(SPX_ERR_INVALID_CONFIG, "Stack cannot be NULL");
         return -1;
     }
 
     if (stack->depth == 0) {
-        spx_error_set(SPX_ERR_INTERNAL, "Call stack underflow");
         return -1;
     }
 
@@ -105,12 +97,10 @@ int spx_call_stack_pop(spx_call_stack_t *stack, spx_php_function_t *function)
 int spx_call_stack_peek(const spx_call_stack_t *stack, spx_php_function_t *function)
 {
     if (!stack) {
-        spx_error_set(SPX_ERR_INVALID_CONFIG, "Stack cannot be NULL");
         return -1;
     }
 
     if (stack->depth == 0) {
-        spx_error_set(SPX_ERR_INTERNAL, "Call stack is empty");
         return -1;
     }
 
@@ -152,12 +142,10 @@ int spx_call_stack_get_frame_at(const spx_call_stack_t *stack, size_t index,
                                 spx_php_function_t *function)
 {
     if (!stack) {
-        spx_error_set(SPX_ERR_INVALID_CONFIG, "Stack cannot be NULL");
         return -1;
     }
 
     if (index >= stack->depth) {
-        spx_error_set(SPX_ERR_INTERNAL, "Index out of bounds");
         return -1;
     }
 

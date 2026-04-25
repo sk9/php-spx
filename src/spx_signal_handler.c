@@ -23,7 +23,6 @@
 
 #if defined(USE_SIGNAL)
 
-#include "spx_error.h"
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -54,7 +53,6 @@ spx_signal_handler_t *spx_signal_handler_create(void)
 {
     spx_signal_handler_t *handler = malloc(sizeof(*handler));
     if (!handler) {
-        spx_error_set(SPX_ERR_OUT_OF_MEMORY, "Failed to allocate signal handler");
         return NULL;
     }
 
@@ -89,7 +87,6 @@ void spx_signal_handler_destroy(spx_signal_handler_t *handler)
 int spx_signal_handler_install(spx_signal_handler_t *handler)
 {
     if (!handler) {
-        spx_error_set(SPX_ERR_INVALID_CONFIG, "Handler cannot be NULL");
         return -1;
     }
 
@@ -106,14 +103,12 @@ int spx_signal_handler_install(spx_signal_handler_t *handler)
     sigemptyset(&act.sa_mask);
 
     if (sigaction(SIGINT, &act, &handler->prev_handler.sigint) != 0) {
-        spx_error_set(SPX_ERR_INTERNAL, "Failed to install SIGINT handler");
         return -1;
     }
 
     if (sigaction(SIGTERM, &act, &handler->prev_handler.sigterm) != 0) {
         /* Restore SIGINT on failure */
         sigaction(SIGINT, &handler->prev_handler.sigint, NULL);
-        spx_error_set(SPX_ERR_INTERNAL, "Failed to install SIGTERM handler");
         return -1;
     }
 
