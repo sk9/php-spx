@@ -42,6 +42,15 @@ Current requirements are:
 * zlib dev package (e.g. zlib1g-dev on Debian based distros)
 * PHP 8.3 to 8.5
 
+Optional:
+
+* libsodium dev package (e.g. libsodium-dev on Debian based distros). When
+  present at `./configure` time, SPX uses libsodium's `sodium_memcmp` and
+  `randombytes_buf` for the HTTP auth-key compare path. Falls back to a
+  built-in constant-time loop and `/dev/urandom` if unavailable. To opt out
+  even when present, set `SPX_NO_LIBSODIUM=1` in the environment before
+  running `./configure`.
+
 ## Installation
 
 ### Prerequisites

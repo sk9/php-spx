@@ -15,10 +15,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "spx_security_crypto.h"
-#include <fcntl.h>
 #include <string.h>
+
+#ifdef HAVE_LIBSODIUM
+#include <sodium.h>
+#else
+#include <fcntl.h>
 #include <unistd.h>
+#endif
 
 int spx_crypto_compare_strings_constant_time(const char *a, const char *b)
 {
@@ -30,12 +39,20 @@ int spx_crypto_compare_strings_constant_time(const char *a, const char *b)
     size_t len_b = strlen(b);
     size_t compare_len = len_a < len_b ? len_a : len_b;
 
+#ifdef HAVE_LIBSODIUM
+    unsigned char result =
+        (unsigned char) sodium_memcmp((const unsigned char *) a, (const unsigned char *) b,
+                                      compare_len);
+    result |= (unsigned char) (len_a ^ len_b);
+    return result;
+#else
     unsigned char result = (unsigned char) (len_a ^ len_b);
     for (size_t i = 0; i < compare_len; i++) {
         result |= (unsigned char) a[i] ^ (unsigned char) b[i];
     }
 
     return result;
+#endif
 }
 
 int spx_crypto_random_bytes(void *buffer, size_t size)
@@ -44,6 +61,10 @@ int spx_crypto_random_bytes(void *buffer, size_t size)
         return -1;
     }
 
+#ifdef HAVE_LIBSODIUM
+    randombytes_buf(buffer, size);
+    return 0;
+#else
     int fd = open("/dev/urandom", O_RDONLY);
     if (fd < 0) {
         return -1;
@@ -61,4 +82,5 @@ int spx_crypto_random_bytes(void *buffer, size_t size)
 
     close(fd);
     return 0;
+#endif
 }

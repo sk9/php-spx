@@ -63,6 +63,29 @@ if test "$PHP_SPX" = "yes"; then
         AC_MSG_ERROR([spx support requires ZLIB. Use --with-zlib-dir=<DIR> to specify the prefix where ZLIB headers and library are located])
     fi
 
+    # Optional libsodium support: SPX uses sodium_memcmp + randombytes_buf for
+    # the HTTP auth-key compare and random delay if available; otherwise it
+    # falls back to a built-in constant-time loop and /dev/urandom. To opt
+    # out, set the environment variable SPX_NO_LIBSODIUM=1 before configure.
+    AC_MSG_CHECKING([for libsodium])
+    SPX_LIBSODIUM_DIR=""
+    if test "x$SPX_NO_LIBSODIUM" = "x"; then
+        for i in /usr/local /usr /opt/local; do
+            if test -f "$i/include/sodium.h"; then
+                SPX_LIBSODIUM_DIR="$i"
+                break
+            fi
+        done
+    fi
+    if test -n "$SPX_LIBSODIUM_DIR"; then
+        AC_MSG_RESULT([$SPX_LIBSODIUM_DIR])
+        AC_DEFINE([HAVE_LIBSODIUM], [1], [Use libsodium for crypto primitives])
+        PHP_ADD_LIBRARY_WITH_PATH(sodium, $SPX_LIBSODIUM_DIR/$PHP_LIBDIR, SPX_SHARED_LIBADD)
+        PHP_ADD_INCLUDE($SPX_LIBSODIUM_DIR/include)
+    else
+        AC_MSG_RESULT([not found or disabled, using built-in implementation])
+    fi
+
     PHP_NEW_EXTENSION(spx,
         src/php_spx.c               \
         src/spx_profiler.c          \
