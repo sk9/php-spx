@@ -70,16 +70,7 @@ typedef struct {
 
 extern spx_metric_info_t spx_metric_info[SPX_METRIC_COUNT];
 
-/**
- * Initialize the metric system.
- * Must be called before using any metric functions.
- * Initializes the registry and registers all built-in metrics.
- */
 void spx_metric_init(void);
-
-/**
- * Shutdown the metric system and free resources.
- */
 void spx_metric_shutdown(void);
 
 spx_metric_t spx_metric_get_by_key(const char *key);
