@@ -5,7 +5,7 @@ This document provides essential information for AI assistants working with the 
 ## Project Overview
 
 **SPX (Simple Profiling eXtension)** is a PHP profiler extension written in C. It provides:
-- Low-overhead profiling for PHP 5.4 through 8.5
+- Low-overhead profiling for PHP 8.3 through 8.5
 - Multi-metric collection (22 metrics: time, memory, I/O, GC, etc.)
 - Web-based UI for analysis with timeline, flat profile, and flamegraph views
 - CLI profiling with instant flat profile output
@@ -65,10 +65,8 @@ sudo make install
 ### Compiler Flags (from config.m4)
 
 ```
-CFLAGS: -Werror -Wall -O3 -pthread -std=gnu90 -Wno-typedef-redefinition
+CFLAGS: -Werror -Wall -O3 -pthread -std=gnu11 -Wno-typedef-redefinition
 ```
-
-**Note:** Uses C90 (gnu90) standard for maximum compatibility with older PHP versions.
 
 ## Coding Standards
 
@@ -192,23 +190,14 @@ Error categories: memory, validation, I/O, security, internal.
 
 ## PHP Version Compatibility
 
-The code supports PHP 5.4 through 8.5 with conditional compilation:
+The code supports PHP 8.3 through 8.5. The Zend API floor is enforced at
+`src/php_spx.h` with `ZEND_MODULE_API_NO < 20230831`. The codebase no
+longer branches on older PHP versions.
 
-```c
-#if ZEND_MODULE_API_NO >= 20151012  // PHP 7.0+
-    // PHP 7+ code
-#else
-    // PHP 5.x code
-#endif
-```
-
-Common API version checks:
-- `20100525` - PHP 5.4
-- `20151012` - PHP 7.0
-- `20170718` - PHP 7.2
-- `20180731` - PHP 7.3
-- `20190902` - PHP 7.4
-- `20200930` - PHP 8.0
+Common API version checks (for reference):
+- `20230831` - PHP 8.3 (current floor)
+- `20240924` - PHP 8.4
+- `20250925` - PHP 8.5
 
 ## Web UI Assets
 

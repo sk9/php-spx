@@ -23,17 +23,15 @@
 #include "main/php.h"
 
 /*
-        TSRMLS_* macros, which were deprecated since PHP7, are removed in PHP8.
-        More details here:
-        https://github.com/php/php-src/blob/PHP-8.0/UPGRADING.INTERNALS#L50
-*/
-#if ZEND_MODULE_API_NO >= 20200930
+ *  TSRMLS_* macros were deprecated since PHP 7 and removed in PHP 8.
+ *  Define them as empty here for any leftover usages elsewhere.
+ *  https://github.com/php/php-src/blob/PHP-8.0/UPGRADING.INTERNALS#L50
+ */
 #define TSRMLS_CC
 #define TSRMLS_C
 #define TSRMLS_DC
 #define TSRMLS_D
 #define TSRMLS_FETCH()
-#endif
 
 typedef struct {
     uint64_t hash_code;
