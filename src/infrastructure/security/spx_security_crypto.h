@@ -20,43 +20,16 @@
 
 #include <stddef.h>
 
-/**
- * Constant-time memory comparison
- *
- * Compares two memory regions in constant time to prevent timing attacks.
- * Returns 0 if equal, non-zero if different.
- *
- * SECURITY: This function executes in constant time regardless of where
- * differences occur in the buffers.
- */
-int spx_crypto_compare_constant_time(const void *a, const void *b, size_t len);
-
-/**
- * Constant-time string comparison
- *
- * Compares two null-terminated strings in constant time.
- * Returns 0 if equal, non-zero if different.
- *
- * SECURITY: This function executes in constant time regardless of string
- * content. Both strings must be non-NULL.
+/*
+ *  Constant-time string comparison. Returns 0 if equal, non-zero otherwise.
+ *  Both inputs must be non-NULL.
  */
 int spx_crypto_compare_strings_constant_time(const char *a, const char *b);
 
-/**
- * Generate cryptographically secure random bytes
- *
- * Fills buffer with secure random bytes from /dev/urandom or equivalent.
- * Returns 0 on success, -1 on failure.
+/*
+ *  Fill buffer with cryptographically secure random bytes from /dev/urandom.
+ *  Returns 0 on success, -1 on failure.
  */
 int spx_crypto_random_bytes(void *buffer, size_t size);
-
-/**
- * Generate a random hex key
- *
- * Generates a random key and formats it as hexadecimal string.
- * Buffer size should be at least (size * 2) + 1 bytes.
- * Returns 0 on success, -1 on failure.
- */
-int spx_crypto_generate_hex_key(char *buffer, size_t size, size_t key_bytes);
 
 #endif /* SPX_SECURITY_CRYPTO_H_DEFINED */

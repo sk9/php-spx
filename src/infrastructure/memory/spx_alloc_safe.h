@@ -21,44 +21,11 @@
 #include "../spx_error.h"
 #include <stddef.h>
 
-/**
- * Safe memory allocation with overflow checking
- *
- * These functions provide memory allocation with:
- * - NULL pointer checking
- * - Overflow detection
- * - Error reporting
- * - Automatic cleanup via GCC cleanup attribute
+/*
+ *  strdup with overflow checking and structured error reporting.
+ *  Returns NULL on input/allocation failure (sets *error).
+ *  Caller owns the returned buffer and must free() it.
  */
-
-/* Allocation with error handling */
-void *spx_malloc_checked(size_t size, const char *purpose, spx_error_t *error);
-
-void *spx_calloc_checked(size_t nmemb, size_t size, const char *purpose, spx_error_t *error);
-
-void *spx_realloc_checked(void *ptr, size_t size, const char *purpose, spx_error_t *error);
-
-/* Safe deallocation (sets pointer to NULL) */
-void spx_free_safe(void **ptr);
-
-/* Memory cleanup helper (for use with cleanup attribute) */
-void spx_auto_free(void *ptr);
-
-#define SPX_AUTO_FREE __attribute__((cleanup(spx_auto_free)))
-
-/* Allocator with overflow protection */
-void *spx_malloc_array(size_t nmemb, size_t size, const char *purpose, spx_error_t *error);
-
-/* Check for multiplication overflow */
-int spx_check_mul_overflow(size_t a, size_t b, size_t *result);
-
-/* Check for addition overflow */
-int spx_check_add_overflow(size_t a, size_t b, size_t *result);
-
-/* Allocate and copy string */
 char *spx_strdup_checked(const char *str, const char *purpose, spx_error_t *error);
-
-/* Allocate and copy string with length limit */
-char *spx_strndup_checked(const char *str, size_t max_len, const char *purpose, spx_error_t *error);
 
 #endif /* SPX_ALLOC_SAFE_H_DEFINED */
