@@ -17,8 +17,6 @@
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 #include "spx_stdio-unix.c"
-#elif defined(_WIN32)
-#include "spx_stdio-win32.c"
 #else
 #error "Your platform is not supported, please open an issue."
 #endif

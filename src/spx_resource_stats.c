@@ -21,8 +21,6 @@
 #include "spx_resource_stats-macos.c"
 #elif defined(__FreeBSD__)
 #include "spx_resource_stats-freebsd.c"
-#elif defined(_WIN32)
-#include "spx_resource_stats-win32.c"
 #else
 #error "Your platform is not supported. Please open an issue."
 #endif
