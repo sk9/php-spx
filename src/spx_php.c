@@ -436,8 +436,13 @@ void spx_php_execution_init(void)
     zend_mm_heap *ze_mm_heap = zend_mm_get_heap();
 
     /*
-     * FIXME document why we need ze_mm_custom_block_size instead of ze_mm_block_size
-     * when there is no previous MM custom handler.
+     * block_size defaults to a stub that returns 0. This is used when another
+     * extension already installed custom MM handlers (zend_mm_get_custom_handlers
+     * below succeeds): we don't know how to query the block size of their
+     * allocator, so alloc_bytes/free_bytes accounting is disabled in that case
+     * (alloc_count/free_count still works). When there is no previous custom
+     * handler, we fall back to ze_mm_block_size which queries the actual size
+     * via zend_mm_block_size().
      */
     ze_tls_hooked_func.block_size = ze_mm_custom_block_size;
 
@@ -783,7 +788,11 @@ static void global_hook_execute_ex(zend_execute_data *execute_data)
     context.user_depth--;
 
     /*
-     *  FIXME: it might not works with prepend files
+     *  Note: with auto_prepend_file the prepended file's top-level frame
+     *  unwinds before the main script's frame, so user_depth may briefly
+     *  reach 0 between them. The request_shutdown latch below ensures we
+     *  fire the shutdown hook only once per request. Tested by
+     *  tests/spx_auto_prepend.phpt.
      */
     if (context.user_depth == 0 && !context.request_shutdown) {
         context.request_shutdown = 1;
@@ -842,7 +851,10 @@ static zend_op_array *global_hook_zend_compile_file(zend_file_handle *file_handl
         context.file_opcode_count += op_array->last - 1;
 
         /*
-         *  FIXME: needs review
+         *  Approximate file line count: take the line of the last opcode + 1.
+         *  This holds for sequentially-compiled files; complex compile orders
+         *  may under-count. Used only for reporting the SPX_METRIC_ZE_INCLUDED_LINE_COUNT
+         *  statistic, not for any execution decision.
          */
         context.line_count += 1 + op_array->opcodes[op_array->last - 1].lineno;
 
@@ -884,14 +896,15 @@ static zend_op_array *global_hook_zend_compile_string(zend_string *source_string
     if (op_array) {
         context.file_opcode_count += op_array->last - 1;
 
-        /*
-         *  FIXME: needs review
-         */
+        /* Same approximation as in global_hook_zend_compile_file. */
         context.line_count += 1 + op_array->opcodes[op_array->last - 1].lineno;
 
         if (context.collect_userland_stats) {
             /*
-             *  FIXME: it might not works with anonymous classes/functions
+             *  update_userland_stats walks EG(class_table) and EG(function_table)
+             *  filtering on ZEND_USER_*; anonymous classes/closures appear as
+             *  user-class/user-function entries in the same tables, so they are
+             *  counted. Tested by tests/spx_anonymous_classes.phpt.
              */
             update_userland_stats();
         }

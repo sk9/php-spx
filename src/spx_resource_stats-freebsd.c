@@ -43,13 +43,21 @@ size_t spx_resource_stats_cpu_time(void)
 
 size_t spx_resource_stats_own_rss(void)
 {
-    /* FIXME supported ? */
+    /*
+     *  FreeBSD doesn't expose a procfs equivalent of Linux's
+     *  /proc/self/status:RssAnon, and getrusage's ru_maxrss is a peak (not
+     *  a current) value, so it can't produce meaningful per-call deltas.
+     */
     return 0;
 }
 
 void spx_resource_stats_io(size_t *in, size_t *out)
 {
-    /* FIXME supported ? */
+    /*
+     *  FreeBSD doesn't expose per-process I/O byte counters equivalent to
+     *  Linux's /proc/self/task/<tid>/io. getrusage exposes ru_inblock and
+     *  ru_oublock but those are block counts, not bytes.
+     */
     *in = 0;
     *out = 0;
 }
