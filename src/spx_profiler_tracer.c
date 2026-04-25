@@ -27,6 +27,7 @@
 #include "spx_resource_stats.h"
 #include "spx_string_pool.h"
 #include "spx_utils.h"
+#include "infrastructure/spx_common.h"
 
 /* Compatibility macros for old code - will be removed in next refactoring */
 #define STACK_CAPACITY spx_get_max_stack_depth()
@@ -257,6 +258,7 @@ static void tracing_profiler_call_start(spx_profiler_t *base_profiler,
 
 end:
     profiler->stack.depth++;
+    SPX_ASSERT(profiler->stack.depth <= STACK_CAPACITY);
 
     profiler->active = profiler->stack.depth < profiler->max_depth;
 }
@@ -299,6 +301,7 @@ static void tracing_profiler_call_end(spx_profiler_t *base_profiler)
     METRIC_VALUES_MAX(frame->peak_metric_values, cur_metric_values);
 
     spx_profiler_func_table_entry_t *entry = frame->func_table_entry;
+    SPX_ASSERT(entry->idx < profiler->func_table.size);
 
     spx_profiler_metric_values_t inc_metric_values = cur_metric_values;
     METRIC_VALUES_SUB(inc_metric_values, frame->start_metric_values);

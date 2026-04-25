@@ -174,10 +174,9 @@ void spx_metric_collector_collect(spx_metric_collector_t *collector, double *val
         }
     }
 
-    SPX_METRIC_FOREACH(i, {
-        if (!collector->enabled_metrics[i]) {
-            continue;
-        }
+    /* Optimization: only iterate enabled metrics rather than scanning all 22 */
+    for (size_t k = 0; k < collector->enabled_count; k++) {
+        spx_metric_t i = collector->enabled_indices[k];
 
         if (!spx_metric_info[i].releasable) {
             const double diff = current_values[i] - collector->last_values[i];
@@ -191,7 +190,7 @@ void spx_metric_collector_collect(spx_metric_collector_t *collector, double *val
 
         collector->last_values[i] = current_values[i];
         values[i] = collector->last_values[i] - collector->ref_values[i];
-    });
+    }
 }
 
 void spx_metric_collector_noise_barrier(spx_metric_collector_t *collector)
